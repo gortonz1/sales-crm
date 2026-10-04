@@ -10,6 +10,7 @@ import Logo from "@/public/assets/images/_common/logo.svg";
 import BuildingIcon from "@/public/assets/images/companies/sidebar/building.svg";
 import MailIcon from "@/public/assets/images/companies/sidebar/mail.svg";
 import UsersIcon from "@/public/assets/images/companies/sidebar/users.svg";
+import ClipboardIcon from "@/public/assets/images/companies/sidebar/clipboard.svg";
 
 export default function SidebarContent({ email }: { email: string | null }) {
   const pathname = usePathname();
@@ -46,6 +47,13 @@ export default function SidebarContent({ email }: { email: string | null }) {
               href="/leads"
               onClick={closeSidebar}
               active={pathname.startsWith("/leads")}
+            />
+            <SidebarNavItem
+              icon={ClipboardIcon}
+              label="Recruitment"
+              href="/recruitment"
+              onClick={closeSidebar}
+              active={pathname.startsWith("/recruitment")}
             />
           </SidebarSection>
 

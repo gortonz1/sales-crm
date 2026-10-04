@@ -83,6 +83,71 @@ export type Database = {
           },
         ]
       }
+      recruitments: {
+        Row: {
+          board_group: string
+          client: string
+          contact: string | null
+          contract: string | null
+          created_at: string
+          created_by: string | null
+          das: string | null
+          deposit: string | null
+          est_start_month: string | null
+          id: string
+          interview_date: string | null
+          interviewees: string | null
+          lead_id: string | null
+          left_status: string | null
+          monday_item_id: string | null
+          notes: string | null
+          shortlist_count: number | null
+          shortlist_delivery: string | null
+          signed_up_on: string | null
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          board_group?: string
+          client: string
+          contact?: string | null
+          contract?: string | null
+          das?: string | null
+          deposit?: string | null
+          est_start_month?: string | null
+          interview_date?: string | null
+          interviewees?: string | null
+          lead_id?: string | null
+          left_status?: string | null
+          notes?: string | null
+          shortlist_count?: number | null
+          shortlist_delivery?: string | null
+          signed_up_on?: string | null
+          source?: string | null
+          status?: string
+        }
+        Update: {
+          board_group?: string
+          client?: string
+          contact?: string | null
+          contract?: string | null
+          das?: string | null
+          deposit?: string | null
+          est_start_month?: string | null
+          interview_date?: string | null
+          interviewees?: string | null
+          lead_id?: string | null
+          left_status?: string | null
+          notes?: string | null
+          shortlist_count?: number | null
+          shortlist_delivery?: string | null
+          signed_up_on?: string | null
+          source?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       lead_stages: {
         Row: { id: string; in_pipeline: boolean; label: string; position: number }
         Insert: { id: string; in_pipeline?: boolean; label: string; position: number }
@@ -181,3 +246,6 @@ export type Tables<T extends keyof Database["public"]["Tables"]> =
 
 export type TablesUpdate<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Update"]
+
+export type TablesInsert<T extends keyof Database["public"]["Tables"]> =
+  Database["public"]["Tables"][T]["Insert"]
