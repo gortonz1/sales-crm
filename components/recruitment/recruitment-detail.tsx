@@ -24,11 +24,11 @@ import { formatDateTime } from "@/lib/leads";
 import {
   CONTRACT_STATUSES,
   LEFT_STATUSES,
-  MONTHS,
   PAPERWORK_STATUSES,
   RECRUITMENT_GROUPS,
   RECRUITMENT_STATUSES,
   SOURCES,
+  monthOptions,
   type Recruitment,
   type RecruitmentPatch,
 } from "@/lib/recruitment";
@@ -43,7 +43,7 @@ type Draft = {
   contact: string;
   status: string;
   board_group: string;
-  est_start_month: string;
+  est_start: string;
   source: string;
   left_status: string;
   shortlist_delivery: string;
@@ -63,7 +63,7 @@ const EMPTY: Draft = {
   contact: "",
   status: "working-on",
   board_group: "active",
-  est_start_month: NONE,
+  est_start: NONE,
   source: NONE,
   left_status: NONE,
   shortlist_delivery: "",
@@ -84,7 +84,7 @@ function toDraft(item: Recruitment): Draft {
     contact: item.contact ?? "",
     status: item.status,
     board_group: item.board_group,
-    est_start_month: item.est_start_month ?? NONE,
+    est_start: item.est_start ?? NONE,
     source: item.source ?? NONE,
     left_status: item.left_status ?? NONE,
     shortlist_delivery: item.shortlist_delivery ?? "",
@@ -109,7 +109,7 @@ function toPatch(draft: Draft): RecruitmentPatch {
     contact: text(draft.contact),
     status: draft.status,
     board_group: draft.board_group,
-    est_start_month: opt(draft.est_start_month),
+    est_start: opt(draft.est_start),
     source: opt(draft.source),
     left_status: opt(draft.left_status),
     shortlist_delivery: draft.shortlist_delivery || null,
@@ -260,9 +260,9 @@ function DetailBody({
             <Field label="Est. start" id="r-month">
               <Choice
                 id="r-month"
-                value={draft.est_start_month}
-                onChange={set("est_start_month")}
-                options={MONTHS}
+                value={draft.est_start}
+                onChange={set("est_start")}
+                options={monthOptions(item?.est_start ?? null)}
                 placeholder="—"
               />
             </Field>

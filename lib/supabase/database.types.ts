@@ -93,6 +93,7 @@ export type Database = {
           created_by: string | null
           das: string | null
           deposit: string | null
+          est_start: string | null
           est_start_month: string | null
           id: string
           interview_date: string | null
@@ -115,6 +116,7 @@ export type Database = {
           contract?: string | null
           das?: string | null
           deposit?: string | null
+          est_start?: string | null
           est_start_month?: string | null
           interview_date?: string | null
           interviewees?: string | null
@@ -134,6 +136,7 @@ export type Database = {
           contract?: string | null
           das?: string | null
           deposit?: string | null
+          est_start?: string | null
           est_start_month?: string | null
           interview_date?: string | null
           interviewees?: string | null
