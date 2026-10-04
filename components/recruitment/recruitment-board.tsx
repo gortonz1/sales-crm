@@ -3,7 +3,7 @@
 import { useState, type DragEvent } from "react";
 import CountBadge from "@/components/_ui/count-badge";
 import {
-  monthLabel,
+  formatMonth,
   sourceLabel,
   statusColor,
   type Recruitment,
@@ -84,12 +84,11 @@ export default function RecruitmentBoard({
                       <span className="min-w-0 truncate">
                         {sourceLabel(item.source)}
                       </span>
-                      {item.est_start_month &&
-                        item.est_start_month !== "unknown" && (
-                          <span className="shrink-0">
-                            Start {monthLabel(item.est_start_month).slice(0, 3)}
-                          </span>
-                        )}
+                      {item.est_start && (
+                        <span className="shrink-0">
+                          {formatMonth(item.est_start)}
+                        </span>
+                      )}
                     </span>
                   </button>
                 </li>

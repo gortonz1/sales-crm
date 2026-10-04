@@ -5,7 +5,8 @@ import Button from "@/components/_ui/button";
 import { Input } from "@/components/_ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/_ui/tabs";
 import RecruitmentBoard from "./recruitment-board";
-import RecruitmentTable from "./recruitment-table";
+import RecruitmentSheet from "./recruitment-sheet";
+import RecruitmentForecast from "./recruitment-forecast";
 import RecruitmentDetail from "./recruitment-detail";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
@@ -23,7 +24,13 @@ import MenuIcon from "@/public/assets/images/_common/menu.svg";
 import PlusIcon from "@/public/assets/images/_common/plus.svg";
 import SearchIcon from "@/public/assets/images/_common/search.svg";
 
-type View = "board" | "list";
+type View = "table" | "board" | "forecast";
+
+const VIEWS: { value: View; label: string }[] = [
+  { value: "table", label: "Table" },
+  { value: "board", label: "Board" },
+  { value: "forecast", label: "Forecast" },
+];
 type LeadOption = { id: string; name: string; organisation: string | null };
 
 export default function Recruitment({
@@ -37,7 +44,7 @@ export default function Recruitment({
   const [items, setItems] = useState(initialItems);
   const [group, setGroup] = useState("active");
   const [query, setQuery] = useState("");
-  const [view, setView] = useState<View>("board");
+  const [view, setView] = useState<View>("table");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +76,7 @@ export default function Recruitment({
         return false;
       }
       setItems((current) => [data, ...current]);
-      setGroup(data.board_group);
+      if (view === "board") setGroup(data.board_group);
       return true;
     }
 
@@ -151,36 +158,38 @@ export default function Recruitment({
               {items.length} recruitments
             </span>
             <div className="flex shrink-0 items-center gap-1">
-              {(["board", "list"] as const).map((option) => (
+              {VIEWS.map((option) => (
                 <Button
-                  key={option}
-                  variant={view === option ? "muted" : "ghost"}
+                  key={option.value}
+                  variant={view === option.value ? "muted" : "ghost"}
                   size="sm"
-                  aria-pressed={view === option}
-                  onClick={() => setView(option)}
+                  aria-pressed={view === option.value}
+                  onClick={() => setView(option.value)}
                 >
-                  {option === "board" ? "Board" : "List"}
+                  {option.label}
                 </Button>
               ))}
             </div>
           </div>
         </div>
 
-        <Tabs value={group} onValueChange={setGroup}>
-          <TabsList className="border-border overflow-x-auto border-b px-4">
-            {[...RECRUITMENT_GROUPS, { value: ALL_GROUPS, label: "All" }].map(
-              (tab) => (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  className="shrink-0 whitespace-nowrap"
-                >
-                  {tab.label} ({filterByGroup(searched, tab.value).length})
-                </TabsTrigger>
-              ),
-            )}
-          </TabsList>
-        </Tabs>
+        {view === "board" && (
+          <Tabs value={group} onValueChange={setGroup}>
+            <TabsList className="border-border overflow-x-auto border-b px-4">
+              {[...RECRUITMENT_GROUPS, { value: ALL_GROUPS, label: "All" }].map(
+                (tab) => (
+                  <TabsTrigger
+                    key={tab.value}
+                    value={tab.value}
+                    className="shrink-0 whitespace-nowrap"
+                  >
+                    {tab.label} ({filterByGroup(searched, tab.value).length})
+                  </TabsTrigger>
+                ),
+              )}
+            </TabsList>
+          </Tabs>
+        )}
       </header>
 
       {error && (
@@ -192,13 +201,15 @@ export default function Recruitment({
         </p>
       )}
 
-      <div
-        className={cn(
-          "min-h-0 flex-1",
-          view === "list" ? "overflow-auto" : "overflow-hidden",
-        )}
-      >
-        {view === "board" ? (
+      <div className={cn("min-h-0 flex-1", "overflow-hidden")}>
+        {view === "table" ? (
+          <RecruitmentSheet
+            items={searched}
+            onSave={(id, patch) => save(id, patch)}
+            onOpen={setSelectedId}
+            onAdd={(client, board_group) => save(null, { client, board_group })}
+          />
+        ) : view === "board" ? (
           <RecruitmentBoard
             items={visible}
             statuses={boardStatuses(visible)}
@@ -206,10 +217,10 @@ export default function Recruitment({
             onMove={(id, status) => save(id, { status })}
           />
         ) : (
-          <RecruitmentTable
-            items={visible}
-            selectedId={selectedId}
+          <RecruitmentForecast
+            items={searched}
             onOpen={setSelectedId}
+            onMove={(id, est_start) => save(id, { est_start })}
           />
         )}
       </div>
