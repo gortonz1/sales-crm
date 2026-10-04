@@ -8,6 +8,7 @@ import LeadsTable from "./leads-table";
 import LeadsBoard from "./leads-board";
 import LeadDetail from "./lead-detail";
 import LeadsTimeline from "./leads-timeline";
+import NewLeadDialog from "./new-lead-dialog";
 import ColumnsProvider from "@/components/sheet/columns-provider";
 import type { CustomValue } from "@/components/sheet/custom-cell";
 import {
@@ -19,17 +20,20 @@ import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
 import {
   ALL,
+  EMAIL_SOURCE,
   GENUINE,
   PIPELINE_STAGE_IDS,
   filterByStage,
   matchesSearch,
   type Lead,
   type LeadStage,
+  type NewLead,
   type TimelineEvent,
 } from "@/lib/leads";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 import MenuIcon from "@/public/assets/images/_common/menu.svg";
+import PlusIcon from "@/public/assets/images/_common/plus.svg";
 import SearchIcon from "@/public/assets/images/_common/search.svg";
 
 type View = "list" | "board" | "timeline";
@@ -54,6 +58,7 @@ export default function Leads({
   subnav,
   board = "leads",
   initialColumns,
+  canAdd = false,
 }: {
   board?: "leads" | "ai-enquiries";
   initialColumns: BoardColumn[];
@@ -64,6 +69,7 @@ export default function Leads({
   defaultFilter?: string;
   emptyMessage?: string;
   subnav?: ReactNode;
+  canAdd?: boolean;
 }) {
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
   const columnsApi = useBoardColumns(board, initialColumns);
@@ -73,6 +79,7 @@ export default function Leads({
   const [query, setQuery] = useState("");
   const [view, setView] = useState<View>("list");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const stageLabels = useMemo(
@@ -155,6 +162,56 @@ export default function Leads({
     return true;
   }
 
+  async function addLead(fields: NewLead) {
+    setError(null);
+    const { data, error } = await createClient()
+      .from("leads")
+      .insert({ ...fields, source: EMAIL_SOURCE })
+      .select()
+      .single();
+    if (error || !data) {
+      setError(`Couldn't add the lead: ${error?.message ?? "no response"}`);
+      return false;
+    }
+    setLeads((current) =>
+      [data, ...current].sort((a, b) =>
+        b.submitted_at.localeCompare(a.submitted_at),
+      ),
+    );
+    setEvents((current) => [
+      ...current,
+      {
+        lead_id: data.id,
+        kind: "received",
+        from_stage: null,
+        to_stage: data.stage,
+        body: "Added by hand from an email",
+        created_at: data.submitted_at,
+      },
+    ]);
+    setQuery("");
+    if (filterByStage([data], filter).length === 0) setFilter(data.stage);
+    setSelectedId(data.id);
+    return true;
+  }
+
+  async function deleteLead(id: string) {
+    const previous = leads.find((lead) => lead.id === id);
+    if (!previous) return "This lead is no longer in the list.";
+    const { data, error } = await createClient()
+      .from("leads")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) return `Couldn't delete ${previous.name}: ${error.message}`;
+    if (!data?.length)
+      return "Only leads added by hand from an email can be deleted.";
+    setSelectedId(null);
+    setLeads((current) => current.filter((lead) => lead.id !== id));
+    setEvents((current) => current.filter((event) => event.lead_id !== id));
+    return null;
+  }
+
   async function saveCustom(id: string, columnId: string, value: CustomValue) {
     const previous = leads.find((lead) => lead.id === id);
     if (!previous) return;
@@ -203,6 +260,16 @@ export default function Leads({
                 </button>
               )}
             </div>
+            {canAdd && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setAdding(true)}
+              >
+                <PlusIcon aria-hidden className="size-3" />
+                Add lead
+              </Button>
+            )}
           </div>
 
           <div className="border-border flex flex-col gap-2 border-b px-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
@@ -304,7 +371,16 @@ export default function Leads({
           stageLabels={stageLabels}
           onClose={() => setSelectedId(null)}
           onUpdate={updateLead}
+          onDelete={deleteLead}
         />
+        {canAdd && (
+          <NewLeadDialog
+            open={adding}
+            onOpenChange={setAdding}
+            stages={stages}
+            onAdd={addLead}
+          />
+        )}
       </section>
     </ColumnsProvider>
   );

@@ -261,7 +261,7 @@ export type Database = {
           created_at?: string
           email: string
           enquiry_type?: string | null
-          external_id: string
+          external_id?: string
           id?: string
           interest?: string | null
           message?: string | null
