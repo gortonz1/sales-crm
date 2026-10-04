@@ -1,11 +1,5 @@
-import Sidebar from "@/components/_common/sidebar/sidebar";
-import Companies from "@/components/companies/companies";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return (
-    <main className="flex h-dvh max-w-full overflow-hidden">
-      <Sidebar />
-      <Companies />
-    </main>
-  );
+  redirect("/leads");
 }

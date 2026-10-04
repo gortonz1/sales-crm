@@ -10,14 +10,14 @@ import SidebarContent from "./sidebar-content";
 import SidebarResizer from "./sidebar-resizer";
 import { useCompaniesStore } from "@/stores/companies-store";
 
-export default function Sidebar() {
+export default function Sidebar({ email }: { email: string | null }) {
   const sidebarOpen = useCompaniesStore((state) => state.sidebarOpen);
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
 
   return (
     <>
       <aside className="relative hidden w-(--sidebar-width) shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
-        <SidebarContent />
+        <SidebarContent email={email} />
         <SidebarResizer />
       </aside>
 
@@ -28,9 +28,9 @@ export default function Sidebar() {
         >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SheetDescription className="sr-only">
-            Sales CRM sections and pipelines
+            Sales CRM sections
           </SheetDescription>
-          <SidebarContent />
+          <SidebarContent email={email} />
         </SheetContent>
       </Sheet>
     </>

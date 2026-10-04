@@ -11,6 +11,16 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+## Sales CRM setup
+
+The CRM runs on the Supabase project **CRM** (`vzmfwfzdwakyzgdfnezf`).
+
+- `cp .env.example .env.local` for the Supabase URL and publishable key.
+- `/login` — sign in, or create an account the first time. Only addresses in `public.crm_members` (with a confirmed email) can see leads; add one with `insert into public.crm_members (email) values ('name@example.com');`.
+- `/leads` — website enquiries from themarketingtrainer.co.uk, as a list or a board by stage.
+- `supabase/migrations/` — the schema (leads, stages, activity log, access rules, `ingest_website_lead`).
+- `supabase/functions/website-lead/` — the endpoint the website posts each new enquiry to, authorised by an `x-crm-key` header whose SHA-256 is in `public.ingest_keys`. The website side lives in `the-marketing-trainer` (`src/lib/crm.ts`, `scripts/sync-crm.ts`).
+
 | Script                 | What it does                                                       |
 | ---------------------- | ------------------------------------------------------------------ |
 | `npm run dev`          | Start the dev server                                               |
