@@ -19,6 +19,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/_ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/_ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import {
   AI_COURSE_ENQUIRY,
@@ -45,12 +53,14 @@ export default function LeadDetail({
   stageLabels,
   onClose,
   onUpdate,
+  onDelete,
 }: {
   lead: Lead | null;
   stages: LeadStage[];
   stageLabels: Record<string, string>;
   onClose: () => void;
   onUpdate: (id: string, patch: LeadPatch) => Promise<boolean>;
+  onDelete: (id: string) => Promise<string | null>;
 }) {
   return (
     <Sheet open={lead !== null} onOpenChange={(open) => !open && onClose()}>
@@ -62,6 +72,7 @@ export default function LeadDetail({
             stages={stages}
             stageLabels={stageLabels}
             onUpdate={onUpdate}
+            onDelete={onDelete}
           />
         )}
       </SheetContent>
@@ -74,12 +85,17 @@ function LeadDetailBody({
   stages,
   stageLabels,
   onUpdate,
+  onDelete,
 }: {
   lead: Lead;
   stages: LeadStage[];
   stageLabels: Record<string, string>;
   onUpdate: (id: string, patch: LeadPatch) => Promise<boolean>;
+  onDelete: (id: string) => Promise<string | null>;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [notes, setNotes] = useState(lead.notes ?? "");
   const [savingNotes, setSavingNotes] = useState(false);
   const [activity, setActivity] = useState<LeadActivity[] | null>(null);
@@ -351,13 +367,70 @@ function LeadDetailBody({
           )}
         </section>
 
-        <p className="caption-style text-faint">
-          {isAddedByHand(lead)
-            ? "Added by hand from an email"
-            : `Website enquiry #${lead.external_id}`}{" "}
-          · in the CRM since {formatDate(lead.created_at)}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="caption-style text-faint">
+            {isAddedByHand(lead)
+              ? "Added by hand from an email"
+              : `Website enquiry #${lead.external_id}`}{" "}
+            · in the CRM since {formatDate(lead.created_at)}
+          </p>
+          {isAddedByHand(lead) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-danger hover:text-danger -mr-2"
+              onClick={() => {
+                setDeleteError(null);
+                setConfirmingDelete(true);
+              }}
+            >
+              Delete lead
+            </Button>
+          )}
+        </div>
       </div>
+
+      <Dialog
+        open={confirmingDelete}
+        onOpenChange={(open) => !open && setConfirmingDelete(false)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {lead.name}?</DialogTitle>
+            <DialogDescription>
+              The lead, its notes and its activity will be removed. This
+              can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && (
+            <p role="alert" className="caption-style text-danger px-6 pt-4">
+              {deleteError}
+            </p>
+          )}
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirmingDelete(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={deleting}
+              onClick={async () => {
+                setDeleting(true);
+                const message = await onDelete(lead.id);
+                setDeleting(false);
+                setDeleteError(message);
+              }}
+            >
+              Delete lead
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -195,6 +195,23 @@ export default function Leads({
     return true;
   }
 
+  async function deleteLead(id: string) {
+    const previous = leads.find((lead) => lead.id === id);
+    if (!previous) return "This lead is no longer in the list.";
+    const { data, error } = await createClient()
+      .from("leads")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error) return `Couldn't delete ${previous.name}: ${error.message}`;
+    if (!data?.length)
+      return "Only leads added by hand from an email can be deleted.";
+    setSelectedId(null);
+    setLeads((current) => current.filter((lead) => lead.id !== id));
+    setEvents((current) => current.filter((event) => event.lead_id !== id));
+    return null;
+  }
+
   async function saveCustom(id: string, columnId: string, value: CustomValue) {
     const previous = leads.find((lead) => lead.id === id);
     if (!previous) return;
@@ -354,6 +371,7 @@ export default function Leads({
           stageLabels={stageLabels}
           onClose={() => setSelectedId(null)}
           onUpdate={updateLead}
+          onDelete={deleteLead}
         />
         {canAdd && (
           <NewLeadDialog
