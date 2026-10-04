@@ -8,6 +8,13 @@ import RecruitmentBoard from "./recruitment-board";
 import RecruitmentSheet from "./recruitment-sheet";
 import RecruitmentForecast from "./recruitment-forecast";
 import RecruitmentDetail from "./recruitment-detail";
+import ColumnsProvider from "@/components/sheet/columns-provider";
+import type { CustomValue } from "@/components/sheet/custom-cell";
+import {
+  saveCustomValue,
+  useBoardColumns,
+} from "@/components/sheet/use-board-columns";
+import { withCustom, type BoardColumn } from "@/lib/columns";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
 import {
@@ -35,11 +42,14 @@ type LeadOption = { id: string; name: string; organisation: string | null };
 
 export default function Recruitment({
   initialItems,
+  initialColumns,
   leads,
 }: {
   initialItems: RecruitmentRow[];
+  initialColumns: BoardColumn[];
   leads: LeadOption[];
 }) {
+  const columnsApi = useBoardColumns("recruitment", initialColumns);
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
   const [items, setItems] = useState(initialItems);
   const [group, setGroup] = useState("active");
@@ -106,78 +116,104 @@ export default function Recruitment({
     return true;
   }
 
-  return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className="shrink-0">
-        <div className="flex items-center justify-between gap-2 px-4 py-[14px]">
-          <div className="flex min-w-0 items-center gap-2">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="lg:hidden"
-              aria-label="Open navigation"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <MenuIcon aria-hidden className="size-3.5" />
-            </Button>
-            <h1 className="truncate">Recruitment</h1>
-            <span className="caption-style bg-muted shrink-0 rounded-full border border-[#363636] px-2 py-[3px]">
-              {signedUp} signed up
-            </span>
-          </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => {
-              setSelectedId(null);
-              setCreating(true);
-            }}
-          >
-            <PlusIcon aria-hidden className="size-3" />
-            New recruitment
-          </Button>
-        </div>
+  async function saveCustom(id: string, columnId: string, value: CustomValue) {
+    const previous = items.find((item) => item.id === id);
+    if (!previous) return;
+    setError(null);
+    setItems((current) =>
+      current.map((item) =>
+        item.id === id ? withCustom(item, columnId, value) : item,
+      ),
+    );
+    const { data, error } = await saveCustomValue(
+      "recruitments",
+      id,
+      columnId,
+      value,
+    );
+    setItems((current) =>
+      current.map((item) =>
+        item.id !== id ? item : error ? previous : { ...item, custom: data },
+      ),
+    );
+    if (error) setError(`Couldn't save ${previous.client}: ${error.message}`);
+  }
 
-        <div className="border-border flex flex-col gap-2 border-b px-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
-          <label className="relative block w-full sm:max-w-[20em]">
-            <span className="sr-only">Search recruitments</span>
-            <SearchIcon
-              aria-hidden
-              className="text-subtle pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2"
-            />
-            <Input
-              type="search"
-              placeholder="Search client, contact, notes…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="pl-8"
-            />
-          </label>
-          <div className="flex items-center justify-between gap-3">
-            <span className="caption-style text-subtle">
-              {items.length} recruitments
-            </span>
-            <div className="flex shrink-0 items-center gap-1">
-              {VIEWS.map((option) => (
-                <Button
-                  key={option.value}
-                  variant={view === option.value ? "muted" : "ghost"}
-                  size="sm"
-                  aria-pressed={view === option.value}
-                  onClick={() => setView(option.value)}
-                >
-                  {option.label}
-                </Button>
-              ))}
+  return (
+    <ColumnsProvider api={columnsApi}>
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="shrink-0">
+          <div className="flex items-center justify-between gap-2 px-4 py-[14px]">
+            <div className="flex min-w-0 items-center gap-2">
+              <Button
+                variant="secondary"
+                size="icon"
+                className="lg:hidden"
+                aria-label="Open navigation"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <MenuIcon aria-hidden className="size-3.5" />
+              </Button>
+              <h1 className="truncate">Recruitment</h1>
+              <span className="caption-style bg-muted shrink-0 rounded-full border border-[#363636] px-2 py-[3px]">
+                {signedUp} signed up
+              </span>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setSelectedId(null);
+                setCreating(true);
+              }}
+            >
+              <PlusIcon aria-hidden className="size-3" />
+              New recruitment
+            </Button>
+          </div>
+
+          <div className="border-border flex flex-col gap-2 border-b px-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="relative block w-full sm:max-w-[20em]">
+              <span className="sr-only">Search recruitments</span>
+              <SearchIcon
+                aria-hidden
+                className="text-subtle pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2"
+              />
+              <Input
+                type="search"
+                placeholder="Search client, contact, notes…"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="pl-8"
+              />
+            </label>
+            <div className="flex items-center justify-between gap-3">
+              <span className="caption-style text-subtle">
+                {items.length} recruitments
+              </span>
+              <div className="flex shrink-0 items-center gap-1">
+                {VIEWS.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant={view === option.value ? "muted" : "ghost"}
+                    size="sm"
+                    aria-pressed={view === option.value}
+                    onClick={() => setView(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        {view === "board" && (
-          <Tabs value={group} onValueChange={setGroup}>
-            <TabsList className="border-border overflow-x-auto border-b px-4">
-              {[...RECRUITMENT_GROUPS, { value: ALL_GROUPS, label: "All" }].map(
-                (tab) => (
+          {view === "board" && (
+            <Tabs value={group} onValueChange={setGroup}>
+              <TabsList className="border-border overflow-x-auto border-b px-4">
+                {[
+                  ...RECRUITMENT_GROUPS,
+                  { value: ALL_GROUPS, label: "All" },
+                ].map((tab) => (
                   <TabsTrigger
                     key={tab.value}
                     value={tab.value}
@@ -185,56 +221,59 @@ export default function Recruitment({
                   >
                     {tab.label} ({filterByGroup(searched, tab.value).length})
                   </TabsTrigger>
-                ),
-              )}
-            </TabsList>
-          </Tabs>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
+        </header>
+
+        {error && (
+          <p
+            role="alert"
+            className="caption-style text-danger border-border shrink-0 border-b px-4 py-2"
+          >
+            {error}
+          </p>
         )}
-      </header>
 
-      {error && (
-        <p
-          role="alert"
-          className="caption-style text-danger border-border shrink-0 border-b px-4 py-2"
-        >
-          {error}
-        </p>
-      )}
+        <div className={cn("min-h-0 flex-1", "overflow-hidden")}>
+          {view === "table" ? (
+            <RecruitmentSheet
+              items={searched}
+              onSave={(id, patch) => save(id, patch)}
+              onCustomChange={saveCustom}
+              onOpen={setSelectedId}
+              onAdd={(client, board_group) =>
+                save(null, { client, board_group })
+              }
+            />
+          ) : view === "board" ? (
+            <RecruitmentBoard
+              items={visible}
+              statuses={boardStatuses(visible)}
+              onOpen={setSelectedId}
+              onMove={(id, status) => save(id, { status })}
+            />
+          ) : (
+            <RecruitmentForecast
+              items={searched}
+              onOpen={setSelectedId}
+              onMove={(id, est_start) => save(id, { est_start })}
+            />
+          )}
+        </div>
 
-      <div className={cn("min-h-0 flex-1", "overflow-hidden")}>
-        {view === "table" ? (
-          <RecruitmentSheet
-            items={searched}
-            onSave={(id, patch) => save(id, patch)}
-            onOpen={setSelectedId}
-            onAdd={(client, board_group) => save(null, { client, board_group })}
-          />
-        ) : view === "board" ? (
-          <RecruitmentBoard
-            items={visible}
-            statuses={boardStatuses(visible)}
-            onOpen={setSelectedId}
-            onMove={(id, status) => save(id, { status })}
-          />
-        ) : (
-          <RecruitmentForecast
-            items={searched}
-            onOpen={setSelectedId}
-            onMove={(id, est_start) => save(id, { est_start })}
-          />
-        )}
-      </div>
-
-      <RecruitmentDetail
-        open={creating || selected !== null}
-        item={creating ? null : selected}
-        leads={leads}
-        onClose={() => {
-          setCreating(false);
-          setSelectedId(null);
-        }}
-        onSave={save}
-      />
-    </section>
+        <RecruitmentDetail
+          open={creating || selected !== null}
+          item={creating ? null : selected}
+          leads={leads}
+          onClose={() => {
+            setCreating(false);
+            setSelectedId(null);
+          }}
+          onSave={save}
+        />
+      </section>
+    </ColumnsProvider>
   );
 }
