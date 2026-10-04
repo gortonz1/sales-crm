@@ -10,6 +10,7 @@ import Logo from "@/public/assets/images/_common/logo.svg";
 import BuildingIcon from "@/public/assets/images/companies/sidebar/building.svg";
 import MailIcon from "@/public/assets/images/companies/sidebar/mail.svg";
 import UsersIcon from "@/public/assets/images/companies/sidebar/users.svg";
+import TargetIcon from "@/public/assets/images/companies/sidebar/target-05.svg";
 import ClipboardIcon from "@/public/assets/images/companies/sidebar/clipboard.svg";
 
 export default function SidebarContent({ email }: { email: string | null }) {
@@ -47,6 +48,13 @@ export default function SidebarContent({ email }: { email: string | null }) {
               href="/leads"
               onClick={closeSidebar}
               active={pathname.startsWith("/leads")}
+            />
+            <SidebarNavItem
+              icon={TargetIcon}
+              label="AI in Marketing L4"
+              href="/ai-course"
+              onClick={closeSidebar}
+              active={pathname.startsWith("/ai-course")}
             />
             <SidebarNavItem
               icon={ClipboardIcon}

@@ -41,15 +41,21 @@ export default function Leads({
   stages,
   initialLeads,
   initialEvents,
+  title = "Website leads",
+  defaultFilter = GENUINE,
+  emptyMessage = "New contact-form enquiries from the website land here automatically.",
 }: {
   stages: LeadStage[];
   initialLeads: Lead[];
   initialEvents: TimelineEvent[];
+  title?: string;
+  defaultFilter?: string;
+  emptyMessage?: string;
 }) {
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
   const [leads, setLeads] = useState(initialLeads);
   const [events, setEvents] = useState(initialEvents);
-  const [filter, setFilter] = useState(GENUINE);
+  const [filter, setFilter] = useState(defaultFilter);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<View>("list");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -149,7 +155,7 @@ export default function Leads({
             >
               <MenuIcon aria-hidden className="size-3.5" />
             </Button>
-            <h1 className="truncate">Website leads</h1>
+            <h1 className="truncate">{title}</h1>
             {newCount > 0 && (
               <button
                 type="button"
@@ -228,7 +234,7 @@ export default function Leads({
         )}
       >
         {leads.length === 0 ? (
-          <EmptyState />
+          <EmptyState message={emptyMessage} />
         ) : view === "list" ? (
           <LeadsTable
             leads={visible}
@@ -264,15 +270,12 @@ export default function Leads({
   );
 }
 
-function EmptyState() {
+function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex h-full items-center justify-center px-4 py-16">
       <div className="flex max-w-[28em] flex-col gap-2 text-center">
         <p className="lead-style font-medium">No leads yet</p>
-        <p className="text-soft">
-          New contact-form enquiries from the website land here automatically.
-          Past enquiries appear once the website import has been run.
-        </p>
+        <p className="text-soft">{message}</p>
       </div>
     </div>
   );
