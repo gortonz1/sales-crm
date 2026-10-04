@@ -1,33 +1,27 @@
 "use client";
 
-import Button from "@/components/_ui/button";
+import { usePathname, useRouter } from "next/navigation";
 import { ScrollArea } from "@/components/_ui/scroll-area";
 import SidebarNavItem from "./sidebar-nav-item";
 import SidebarSection from "./sidebar-section";
 import { useCompaniesStore } from "@/stores/companies-store";
+import { createClient } from "@/lib/supabase/client";
 import Logo from "@/public/assets/images/_common/logo.svg";
 import BuildingIcon from "@/public/assets/images/companies/sidebar/building.svg";
-import ClipboardIcon from "@/public/assets/images/companies/sidebar/clipboard.svg";
-import BarChartIcon from "@/public/assets/images/companies/sidebar/bar-chart.svg";
-import ListIcon from "@/public/assets/images/companies/sidebar/list.svg";
-import BookClosedIcon from "@/public/assets/images/companies/sidebar/book-closed.svg";
 import MailIcon from "@/public/assets/images/companies/sidebar/mail.svg";
-import TargetIcon from "@/public/assets/images/companies/sidebar/target-05.svg";
-import TargetAltIcon from "@/public/assets/images/companies/sidebar/target-03.svg";
 import UsersIcon from "@/public/assets/images/companies/sidebar/users.svg";
-import BarChartAltIcon from "@/public/assets/images/companies/sidebar/bar-chart-10.svg";
-import AlertTriangleIcon from "@/public/assets/images/companies/sidebar/alert-triangle.svg";
-import DotYellow from "@/public/assets/images/companies/sidebar/dot-yellow.svg";
-import DotPink from "@/public/assets/images/companies/sidebar/dot-pink.svg";
-import DotPurple from "@/public/assets/images/companies/sidebar/dot-purple.svg";
-import UserPlusIcon from "@/public/assets/images/companies/sidebar/user-plus.svg";
-import MessageQuestionIcon from "@/public/assets/images/companies/sidebar/message-question.svg";
-import WalletIcon from "@/public/assets/images/companies/sidebar/wallet.svg";
 
-const BASE_COMPANY_COUNT = 223;
+export default function SidebarContent({ email }: { email: string | null }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
+  const closeSidebar = () => setSidebarOpen(false);
 
-export default function SidebarContent() {
-  const companyCount = useCompaniesStore((state) => state.companies.length);
+  async function signOut() {
+    await createClient().auth.signOut();
+    router.replace("/login");
+    router.refresh();
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -38,7 +32,7 @@ export default function SidebarContent() {
             Sales CRM
           </span>
           <span className="caption-style text-subtle block truncate">
-            Company pipeline
+            The Marketing Trainer
           </span>
         </div>
       </div>
@@ -47,65 +41,40 @@ export default function SidebarContent() {
         <nav aria-label="Primary">
           <SidebarSection className="border-sidebar-border border-b">
             <SidebarNavItem
+              icon={MailIcon}
+              label="Website leads"
+              href="/leads"
+              onClick={closeSidebar}
+              active={pathname.startsWith("/leads")}
+            />
+          </SidebarSection>
+
+          <SidebarSection title="Sample data">
+            <SidebarNavItem
               icon={BuildingIcon}
               label="Companies"
-              count={BASE_COMPANY_COUNT + companyCount}
-              active
+              href="/companies"
+              onClick={closeSidebar}
+              active={pathname.startsWith("/companies")}
             />
-            <SidebarNavItem icon={ClipboardIcon} label="Deals Board" />
-            <SidebarNavItem icon={BarChartIcon} label="Forecast" count={9} />
-            <SidebarNavItem icon={ListIcon} label="Activities" />
-            <SidebarNavItem icon={BookClosedIcon} label="Contacts" count={38} />
-            <SidebarNavItem icon={MailIcon} label="Email Sequences" />
-          </SidebarSection>
-
-          <SidebarSection
-            title="Team"
-            className="border-sidebar-border border-b"
-          >
-            <SidebarNavItem icon={TargetIcon} label="Strategic AEs" />
-            <SidebarNavItem icon={TargetAltIcon} label="Mid Market" />
-            <SidebarNavItem icon={UsersIcon} label="SDR Team" />
-          </SidebarSection>
-
-          <SidebarSection
-            title="Reporting"
-            className="border-sidebar-border border-b"
-          >
-            <SidebarNavItem icon={BarChartAltIcon} label="Q1 Forecast" />
-            <SidebarNavItem icon={AlertTriangleIcon} label="Slipping Deals" />
-          </SidebarSection>
-
-          <SidebarSection title="Pipelines">
-            <SidebarNavItem icon={DotYellow} label="North America" />
-            <SidebarNavItem icon={DotPink} label="EMEA Enterprise" />
-            <SidebarNavItem icon={DotPurple} label="APAC Expansion" />
           </SidebarSection>
         </nav>
       </ScrollArea>
 
-      <SidebarSection className="border-sidebar-border shrink-0 border-t border-b">
-        <SidebarNavItem
-          icon={UserPlusIcon}
-          label="Invite teammates"
-          tone="quiet"
-        />
-        <SidebarNavItem icon={MessageQuestionIcon} label="Help" tone="quiet" />
-      </SidebarSection>
-
-      <div className="border-sidebar-border bg-sidebar-accent flex shrink-0 items-center justify-between gap-2 border-b p-4">
-        <div className="flex flex-col gap-2">
-          <span className="lead-style block font-medium tracking-[-0.01em]">
-            14 Days
+      <div className="border-sidebar-border bg-sidebar-accent flex shrink-0 flex-col gap-2 border-t p-3">
+        {email && (
+          <span className="caption-style text-subtle block truncate px-2">
+            {email}
           </span>
-          <span className="caption-style text-subtle block">
-            Left on trials
-          </span>
-        </div>
-        <Button variant="muted" size="md">
-          <WalletIcon aria-hidden className="size-3.5" />
-          Add Billings
-        </Button>
+        )}
+        <ul className="flex flex-col">
+          <SidebarNavItem
+            icon={UsersIcon}
+            label="Sign out"
+            tone="quiet"
+            onClick={signOut}
+          />
+        </ul>
       </div>
     </div>
   );
