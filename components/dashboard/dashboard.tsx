@@ -7,6 +7,7 @@ import { STAGE_COLORS } from "@/lib/leads";
 import { formatLongMonth, statusColor, statusLabel } from "@/lib/recruitment";
 import { cn } from "@/lib/utils";
 import { useCompaniesStore } from "@/stores/companies-store";
+import SignupsChart, { type SignupMonth } from "./signups-chart";
 import MenuIcon from "@/public/assets/images/_common/menu.svg";
 
 type MonthSummary = {
@@ -107,15 +108,18 @@ export default function Dashboard({
   months,
   activeLeads,
   leadStages,
-  aiEnquiries,
-  aiOptIns,
+  aiInterest,
+  signups,
 }: {
   currentMonth: string;
   months: MonthSummary[];
   activeLeads: number;
   leadStages: { id: string; label: string; count: number }[];
-  aiEnquiries: number;
-  aiOptIns: number;
+  aiInterest: {
+    configured: boolean;
+    rows: { key: string; label: string; color?: string; count: number }[];
+  };
+  signups: SignupMonth[];
 }) {
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
 
@@ -140,7 +144,7 @@ export default function Dashboard({
             href="/leads"
             label="Active website leads"
             value={activeLeads}
-            detail="Genuine leads that haven't gone cold"
+            detail="Genuine leads not yet recruiting or started, and not gone cold"
           >
             <Breakdown
               rows={leadStages.map((stage) => ({
@@ -152,25 +156,16 @@ export default function Dashboard({
             />
           </StatTile>
           <StatTile
-            href="/ai-course"
+            href="/ai-course/mock-exam"
             label="AI in Marketing Level 4 interest"
-            value={aiEnquiries + aiOptIns}
-            detail="Contact form enquiries and mock exam opt-ins"
+            value={aiInterest.rows.reduce((sum, row) => sum + row.count, 0)}
+            detail={
+              aiInterest.configured
+                ? "Marked Potential or Solid in the Status column"
+                : "Add Potential and Solid labels to a Status column on the AI in Marketing L4 tab to count them here"
+            }
           >
-            <Breakdown
-              rows={[
-                {
-                  key: "enquiries",
-                  label: "Contact form enquiries",
-                  count: aiEnquiries,
-                },
-                {
-                  key: "opt-ins",
-                  label: "Mock exam opt-ins",
-                  count: aiOptIns,
-                },
-              ]}
-            />
+            {aiInterest.configured && <Breakdown rows={aiInterest.rows} />}
           </StatTile>
         </div>
 
@@ -232,6 +227,8 @@ export default function Dashboard({
             })}
           </ul>
         </div>
+
+        <SignupsChart months={signups} currentMonth={currentMonth} />
       </div>
     </section>
   );
