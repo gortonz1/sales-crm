@@ -126,7 +126,7 @@ export function DateCell({
       onKeyDown={onKeyDown}
       className={cn(
         cellInput,
-        "tabular-nums [color-scheme:dark]",
+        "tabular-nums",
         !draft && "text-faint",
       )}
     />
@@ -245,7 +245,7 @@ export function LinkCell({
         value={value}
         label={label}
         onCommit={onCommit}
-        className={cn(value && "text-[#7fb0ff]")}
+        className={cn(value && "text-link")}
       />
       {value && (
         <a

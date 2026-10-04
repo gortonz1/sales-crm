@@ -137,7 +137,7 @@ export default function LeadsTable({
         rowClassName={(lead) =>
           cn(
             !lead.active && "text-subtle",
-            lead.id === selectedId && "[&>td]:bg-white/5",
+            lead.id === selectedId && "[&>td]:bg-overlay/5",
           )
         }
         pinned={{

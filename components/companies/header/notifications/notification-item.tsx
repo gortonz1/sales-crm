@@ -60,7 +60,7 @@ export default function NotificationItem({
         size="none"
         onClick={onSelect}
         data-unread={unread}
-        className="p-3 data-[unread=true]:bg-white/2 data-[unread=true]:hover:bg-white/5"
+        className="p-3 data-[unread=true]:bg-overlay/2 data-[unread=true]:hover:bg-overlay/5"
       >
         <span className="relative mt-px shrink-0">
           {actor ? (
@@ -83,7 +83,7 @@ export default function NotificationItem({
             {notification.message}
           </span>
           {notification.quote && (
-            <span className="p-style border-line-strong text-soft block rounded-lg border bg-white/3 px-3 py-2">
+            <span className="p-style border-line-strong text-soft block rounded-lg border bg-overlay/3 px-3 py-2">
               {notification.quote}
             </span>
           )}

@@ -216,7 +216,7 @@ export default function LeadsTimeline({
                   <button
                     type="button"
                     onClick={() => onOpen(lead.id)}
-                    className="bg-background border-border sticky left-0 z-[2] flex min-w-0 flex-col gap-0.5 border-r px-4 py-2 text-left outline-none hover:bg-[#1c1c1c] focus-visible:bg-[#1f1f1f]"
+                    className="bg-background border-border sticky left-0 z-[2] flex min-w-0 flex-col gap-0.5 border-r px-4 py-2 text-left outline-none hover:bg-overlay/[0.03] focus-visible:bg-overlay/[0.05]"
                   >
                     <span className="truncate text-[14px] font-medium">
                       {lead.name}

@@ -71,7 +71,7 @@ export default function LogoUpload({
       onDragLeave={() => setDragging(false)}
       onDrop={handleDrop}
       data-dragging={dragging}
-      className="ease-power3-out data-[dragging=true]:border-line-strong flex items-center gap-4 rounded-xl border border-dashed border-transparent transition-[border-color,background-color] duration-150 data-[dragging=true]:bg-white/3"
+      className="ease-power3-out data-[dragging=true]:border-line-strong flex items-center gap-4 rounded-xl border border-dashed border-transparent transition-[border-color,background-color] duration-150 data-[dragging=true]:bg-overlay/3"
     >
       <span className="bg-muted flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-[14px] shadow-[0px_6px_6px_0px_rgba(15,15,15,0.24),0px_0px_0px_1.5px_#232323]">
         {value ? (

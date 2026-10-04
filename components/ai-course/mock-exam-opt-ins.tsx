@@ -178,7 +178,7 @@ export default function MockExamOptIns({
             </Button>
             <h1 className="truncate">AI in Marketing Level 4</h1>
             {newCount > 0 && (
-              <span className="caption-style bg-muted shrink-0 rounded-full border border-[#363636] px-2 py-[3px]">
+              <span className="caption-style bg-muted shrink-0 rounded-full border border-pill px-2 py-[3px]">
                 {newCount} new
               </span>
             )}

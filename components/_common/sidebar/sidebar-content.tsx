@@ -1,11 +1,15 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ScrollArea } from "@/components/_ui/scroll-area";
 import SidebarNavItem from "./sidebar-nav-item";
 import SidebarSection from "./sidebar-section";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { createClient } from "@/lib/supabase/client";
+import { readTheme, setTheme, subscribeTheme } from "@/lib/theme";
+import MoonIcon from "@/public/assets/images/_common/moon.svg";
+import SunIcon from "@/public/assets/images/_common/sun.svg";
 import Logo from "@/public/assets/images/_common/logo.svg";
 import BuildingIcon from "@/public/assets/images/companies/sidebar/building.svg";
 import MailIcon from "@/public/assets/images/companies/sidebar/mail.svg";
@@ -19,6 +23,7 @@ export default function SidebarContent({ email }: { email: string | null }) {
   const router = useRouter();
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
   const closeSidebar = () => setSidebarOpen(false);
+  const theme = useSyncExternalStore(subscribeTheme, readTheme, () => "dark");
 
   async function signOut() {
     await createClient().auth.signOut();
@@ -92,6 +97,12 @@ export default function SidebarContent({ email }: { email: string | null }) {
           </span>
         )}
         <ul className="flex flex-col">
+          <SidebarNavItem
+            icon={theme === "light" ? MoonIcon : SunIcon}
+            label={theme === "light" ? "Night theme" : "Day theme"}
+            tone="quiet"
+            onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          />
           <SidebarNavItem
             icon={UsersIcon}
             label="Sign out"

@@ -77,7 +77,7 @@ export default function RecruitmentForecast({
               <header
                 className={cn(
                   "border-line-strong flex flex-col gap-1 border-b px-3 py-2.5",
-                  isCurrent && "bg-white/[0.04]",
+                  isCurrent && "bg-overlay/[0.04]",
                 )}
               >
                 <div className="flex items-center justify-between gap-2">

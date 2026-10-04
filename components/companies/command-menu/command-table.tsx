@@ -118,7 +118,7 @@ export function CommandCompanyRow({
         <span className="shrink-0 tabular-nums">
           {formatDate(company.lastInteraction.date)}
         </span>
-        <span aria-hidden className="mx-[3px] h-2 w-px shrink-0 bg-white/15" />
+        <span aria-hidden className="mx-[3px] h-2 w-px shrink-0 bg-overlay/15" />
         <span className="truncate">{company.lastInteraction.label}</span>
       </span>
     </CommandItem>

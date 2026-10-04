@@ -197,7 +197,7 @@ export default function Leads({
                 <button
                   type="button"
                   onClick={() => setFilter("new")}
-                  className="caption-style bg-muted hover:bg-secondary shrink-0 cursor-pointer rounded-full border border-[#363636] px-2 py-[3px] transition-colors duration-150"
+                  className="caption-style bg-muted hover:bg-secondary shrink-0 cursor-pointer rounded-full border border-pill px-2 py-[3px] transition-colors duration-150"
                 >
                   {newCount} to review
                 </button>
