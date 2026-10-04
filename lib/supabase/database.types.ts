@@ -52,6 +52,7 @@ export type Database = {
           exam: string | null
           external_id: string
           id: string
+          interest: string | null
           name: string | null
           notes: string | null
           score_pct: number | null
@@ -66,6 +67,7 @@ export type Database = {
           external_id: string
           source: string
           exam?: string | null
+          interest?: string | null
           name?: string | null
           notes?: string | null
           score_pct?: number | null
@@ -74,6 +76,7 @@ export type Database = {
         }
         Update: {
           custom?: Json
+          interest?: string | null
           notes?: string | null
           status?: string
         }
@@ -237,6 +240,7 @@ export type Database = {
           enquiry_type: string | null
           external_id: string
           id: string
+          interest: string | null
           message: string | null
           monday_item_id: string | null
           name: string
@@ -259,6 +263,7 @@ export type Database = {
           enquiry_type?: string | null
           external_id: string
           id?: string
+          interest?: string | null
           message?: string | null
           monday_item_id?: string | null
           name: string
@@ -281,6 +286,7 @@ export type Database = {
           enquiry_type?: string | null
           external_id?: string
           id?: string
+          interest?: string | null
           message?: string | null
           monday_item_id?: string | null
           name?: string

@@ -115,10 +115,7 @@ export default function Dashboard({
   months: MonthSummary[];
   activeLeads: number;
   leadStages: { id: string; label: string; count: number }[];
-  aiInterest: {
-    configured: boolean;
-    rows: { key: string; label: string; color?: string; count: number }[];
-  };
+  aiInterest: { key: string; label: string; color?: string; count: number }[];
   signups: SignupMonth[];
 }) {
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
@@ -158,14 +155,10 @@ export default function Dashboard({
           <StatTile
             href="/ai-course/mock-exam"
             label="AI in Marketing Level 4 interest"
-            value={aiInterest.rows.reduce((sum, row) => sum + row.count, 0)}
-            detail={
-              aiInterest.configured
-                ? "Marked Potential or Solid in the Status column"
-                : "Add Potential and Solid labels to a Status column on the AI in Marketing L4 tab to count them here"
-            }
+            value={aiInterest.reduce((sum, row) => sum + row.count, 0)}
+            detail="Enquiries and mock exam opt-ins rated Potential or Solid in the Interest column"
           >
-            {aiInterest.configured && <Breakdown rows={aiInterest.rows} />}
+            <Breakdown rows={aiInterest} />
           </StatTile>
         </div>
 
