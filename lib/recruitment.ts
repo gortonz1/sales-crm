@@ -123,7 +123,9 @@ export function forecastMonths(now = new Date()) {
   return Array.from({ length: 7 }, (_, i) => monthKey(addMonths(base, i - 3)));
 }
 
-export const isForecastable = (item: Recruitment) =>
+export const isForecastable = (
+  item: Pick<Recruitment, "board_group" | "status">,
+) =>
   item.board_group !== "dead" &&
   item.status !== "dead" &&
   item.status !== "leaver";

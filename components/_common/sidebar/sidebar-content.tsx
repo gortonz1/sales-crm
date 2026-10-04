@@ -11,6 +11,7 @@ import BuildingIcon from "@/public/assets/images/companies/sidebar/building.svg"
 import MailIcon from "@/public/assets/images/companies/sidebar/mail.svg";
 import UsersIcon from "@/public/assets/images/companies/sidebar/users.svg";
 import TargetIcon from "@/public/assets/images/companies/sidebar/target-05.svg";
+import ChartIcon from "@/public/assets/images/companies/sidebar/bar-chart.svg";
 import ClipboardIcon from "@/public/assets/images/companies/sidebar/clipboard.svg";
 
 export default function SidebarContent({ email }: { email: string | null }) {
@@ -42,6 +43,13 @@ export default function SidebarContent({ email }: { email: string | null }) {
       <ScrollArea className="min-h-0 flex-1">
         <nav aria-label="Primary">
           <SidebarSection className="border-sidebar-border border-b">
+            <SidebarNavItem
+              icon={ChartIcon}
+              label="Dashboard"
+              href="/"
+              onClick={closeSidebar}
+              active={pathname === "/"}
+            />
             <SidebarNavItem
               icon={MailIcon}
               label="Website leads"
