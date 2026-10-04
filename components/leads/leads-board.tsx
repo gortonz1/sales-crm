@@ -3,8 +3,10 @@
 import { useState, type DragEvent } from "react";
 import CountBadge from "@/components/_ui/count-badge";
 import {
+  COLD_COLOR,
   daysSince,
   enquiryTypeLabel,
+  stageColor,
   type Lead,
   type LeadStage,
 } from "@/lib/leads";
@@ -46,11 +48,14 @@ export default function LeadsBoard({
             onDragLeave={() => setDropTarget(null)}
             onDrop={(event) => onDrop(event, stage.id)}
             className={cn(
-              "border-line-strong bg-card flex h-full w-[17em] shrink-0 flex-col rounded-xl border transition-colors duration-150",
+              "border-line-strong bg-card flex h-full min-w-[13em] flex-1 basis-0 flex-col overflow-hidden rounded-xl border transition-colors duration-150",
               dropTarget === stage.id && "border-ring",
             )}
           >
-            <header className="border-line-strong flex items-center justify-between gap-2 border-b px-3 py-2.5">
+            <header
+              className="border-line-strong flex items-center justify-between gap-2 border-t-[3px] border-b px-3 py-2.5"
+              style={{ borderTopColor: stageColor(stage.id) }}
+            >
               <h2 className="caption-style truncate font-medium">
                 {stage.label}
               </h2>
@@ -66,10 +71,12 @@ export default function LeadsBoard({
                       event.dataTransfer.setData("text/plain", lead.id)
                     }
                     onClick={() => onOpen(lead.id)}
-                    className={cn(
-                      "border-line-strong bg-secondary hover:bg-muted focus-visible:ring-ring/60 flex w-full cursor-grab flex-col gap-1 rounded-lg border p-2.5 text-left transition-colors duration-150 outline-none focus-visible:ring-2 active:cursor-grabbing",
-                      !lead.active && "opacity-60",
-                    )}
+                    className="border-line-strong bg-secondary hover:bg-muted focus-visible:ring-ring/60 flex w-full cursor-grab flex-col gap-1 rounded-lg border border-l-[3px] p-2.5 text-left transition-colors duration-150 outline-none focus-visible:ring-2 active:cursor-grabbing"
+                    style={{
+                      borderLeftColor: lead.active
+                        ? stageColor(lead.stage)
+                        : COLD_COLOR,
+                    }}
                   >
                     <span className="truncate text-[14px] font-medium">
                       {lead.name}
@@ -81,11 +88,20 @@ export default function LeadsBoard({
                       <span className="truncate">
                         {enquiryTypeLabel(lead.enquiry_type)}
                       </span>
-                      <span className="shrink-0">
-                        {lead.active
-                          ? `${daysSince(lead.stage_changed_at)}d`
-                          : "Gone cold"}
-                      </span>
+                      {lead.active ? (
+                        <span className="shrink-0">
+                          {daysSince(lead.stage_changed_at)}d
+                        </span>
+                      ) : (
+                        <span className="text-soft flex shrink-0 items-center gap-1">
+                          <span
+                            aria-hidden
+                            className="size-1.5 rounded-full"
+                            style={{ backgroundColor: COLD_COLOR }}
+                          />
+                          Gone cold
+                        </span>
+                      )}
                     </span>
                   </button>
                 </li>

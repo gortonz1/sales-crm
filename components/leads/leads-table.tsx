@@ -6,7 +6,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/_ui/table";
-import Tag from "@/components/_ui/tag";
 import StageTag from "./stage-tag";
 import {
   daysSince,
@@ -83,11 +82,7 @@ export default function LeadsTable({
                   stage={lead.stage}
                   label={stageLabels[lead.stage] ?? lead.stage}
                 />
-                {!lead.active && (
-                  <Tag tone="neutral" size="sm" className="text-[12px]">
-                    Gone cold
-                  </Tag>
-                )}
+                {!lead.active && <StageTag stage="cold" label="Gone cold" />}
               </span>
             </TableCell>
             <TableCell>{formatDate(lead.submitted_at)}</TableCell>

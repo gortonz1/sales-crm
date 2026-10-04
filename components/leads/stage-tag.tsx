@@ -1,5 +1,5 @@
 import Tag from "@/components/_ui/tag";
-import { stageColor } from "@/lib/leads";
+import { COLD_COLOR, stageColor } from "@/lib/leads";
 
 export default function StageTag({
   stage,
@@ -13,7 +13,9 @@ export default function StageTag({
       <span
         aria-hidden
         className="size-2 shrink-0 rounded-full"
-        style={{ backgroundColor: stageColor(stage) }}
+        style={{
+          backgroundColor: stage === "cold" ? COLD_COLOR : stageColor(stage),
+        }}
       />
       {label}
     </Tag>
