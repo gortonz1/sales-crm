@@ -207,7 +207,7 @@ export default function Dashboard({
                         {total}
                       </span>
                       {isCurrent && (
-                        <span className="caption-style bg-muted shrink-0 rounded-full border border-[#363636] px-2 py-[2px]">
+                        <span className="caption-style bg-muted shrink-0 rounded-full border border-pill px-2 py-[2px]">
                           This month
                         </span>
                       )}

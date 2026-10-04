@@ -16,7 +16,17 @@ import { cn } from "@/lib/utils";
 import { DateCell, NumberCell, PillCell, TextCell } from "./cells";
 import SheetTable from "@/components/sheet/sheet-table";
 import type { CustomValue } from "@/components/sheet/custom-cell";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/_ui/dropdown-menu";
 import ChevronDownIcon from "@/public/assets/images/_common/chevron-down.svg";
+import GripIcon from "@/public/assets/images/_common/grip.svg";
+
+const ROW_DRAG_TYPE = "application/x-crm-recruitment";
 
 function renderBuiltIn(
   field: string,
@@ -166,6 +176,12 @@ export default function RecruitmentSheet({
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     dead: true,
   });
+  const [dropGroup, setDropGroup] = useState<string | null>(null);
+
+  function moveTo(id: string, group: string) {
+    const item = items.find((entry) => entry.id === id);
+    if (item && item.board_group !== group) onSave(id, { board_group: group });
+  }
 
   return (
     <div className="h-full overflow-auto pb-10">
@@ -173,7 +189,30 @@ export default function RecruitmentSheet({
         const rows = items.filter((item) => item.board_group === group.value);
         const isCollapsed = collapsed[group.value];
         return (
-          <section key={group.value} className="mt-5 first:mt-4">
+          <section
+            key={group.value}
+            aria-label={group.label}
+            onDragOver={(event) => {
+              if (!event.dataTransfer.types.includes(ROW_DRAG_TYPE)) return;
+              event.preventDefault();
+              setDropGroup(group.value);
+            }}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node))
+                setDropGroup(null);
+            }}
+            onDrop={(event) => {
+              const id = event.dataTransfer.getData(ROW_DRAG_TYPE);
+              setDropGroup(null);
+              if (!id) return;
+              event.preventDefault();
+              moveTo(id, group.value);
+            }}
+            className={cn(
+              "mt-5 rounded-lg transition-colors duration-150 first:mt-4",
+              dropGroup === group.value && "bg-overlay/[0.04]",
+            )}
+          >
             <div className="bg-background sticky left-0 z-[3] flex w-fit items-center gap-2 px-4 pb-2">
               <button
                 type="button"
@@ -215,7 +254,20 @@ export default function RecruitmentSheet({
                     label: "Client",
                     width: 16,
                     render: (item) => (
-                      <div className="flex items-center">
+                      <div className="relative flex items-center">
+                        <span
+                          draggable
+                          aria-hidden
+                          title="Drag to another group"
+                          onDragStart={(event) => {
+                            event.dataTransfer.setData(ROW_DRAG_TYPE, item.id);
+                            event.dataTransfer.effectAllowed = "move";
+                          }}
+                          onDragEnd={() => setDropGroup(null)}
+                          className="text-faint hover:text-subtle flex h-9 w-4 shrink-0 cursor-grab items-center justify-center opacity-0 transition-opacity duration-150 group-hover:opacity-100 active:cursor-grabbing"
+                        >
+                          <GripIcon className="size-3.5" />
+                        </span>
                         <TextCell
                           label="Client"
                           value={item.client}
@@ -224,13 +276,44 @@ export default function RecruitmentSheet({
                             client && onSave(item.id, { client })
                           }
                         />
-                        <button
-                          type="button"
-                          onClick={() => onOpen(item.id)}
-                          className="caption-style text-subtle hover:text-foreground hover:bg-muted mr-1.5 shrink-0 cursor-pointer rounded-md px-1.5 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
-                        >
-                          Open
-                        </button>
+                        <div className="bg-background group-hover:bg-secondary invisible absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5 group-focus-within:visible group-hover:visible has-[[data-state=open]]:visible">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label={`Move ${item.client} to another group`}
+                                className="caption-style text-subtle hover:text-foreground hover:bg-muted data-[state=open]:bg-muted shrink-0 cursor-pointer rounded-md px-1.5 py-1"
+                              >
+                                Move
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuLabel>Move to</DropdownMenuLabel>
+                              {RECRUITMENT_GROUPS.filter(
+                                (target) => target.value !== item.board_group,
+                              ).map((target) => (
+                                <DropdownMenuItem
+                                  key={target.value}
+                                  onSelect={() => moveTo(item.id, target.value)}
+                                >
+                                  <span
+                                    aria-hidden
+                                    className="size-2.5 rounded-[3px]"
+                                    style={{ backgroundColor: target.color }}
+                                  />
+                                  {target.label}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <button
+                            type="button"
+                            onClick={() => onOpen(item.id)}
+                            className="caption-style text-subtle hover:text-foreground hover:bg-muted shrink-0 cursor-pointer rounded-md px-1.5 py-1"
+                          >
+                            Open
+                          </button>
+                        </div>
                       </div>
                     ),
                   }}

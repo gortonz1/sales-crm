@@ -155,7 +155,7 @@ export default function Recruitment({
                 <MenuIcon aria-hidden className="size-3.5" />
               </Button>
               <h1 className="truncate">Recruitment</h1>
-              <span className="caption-style bg-muted shrink-0 rounded-full border border-[#363636] px-2 py-[3px]">
+              <span className="caption-style bg-muted shrink-0 rounded-full border border-pill px-2 py-[3px]">
                 {signedUp} signed up
               </span>
             </div>

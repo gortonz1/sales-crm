@@ -37,7 +37,7 @@ export default function PipelineHealth({ company }: PipelineHealthProps) {
               tone={stage.tone}
               className="h-3 w-full border border-white/4 px-px"
               segmentClassName="h-2"
-              trackClassName="bg-white/8"
+              trackClassName="bg-overlay/8"
             />
           </div>
         ))}

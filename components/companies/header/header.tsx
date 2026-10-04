@@ -37,7 +37,7 @@ export default function CompaniesHeader() {
             <MenuIcon aria-hidden className="size-3.5" />
           </Button>
           <h1 className="truncate">Companies</h1>
-          <span className="caption-style bg-muted inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[#363636] py-[3px] pr-[5px] pl-[3px]">
+          <span className="caption-style bg-muted inline-flex shrink-0 items-center gap-0.5 rounded-full border border-pill py-[3px] pr-[5px] pl-[3px]">
             <ActiveDot aria-hidden className="size-3" />
             Active
           </span>

@@ -97,7 +97,7 @@ export default function SheetTable<Row extends CustomRow>({
             {columns.map((column) => (
               <td
                 key={column.id}
-                className="border-line-strong border-b border-l p-0 group-hover:bg-white/[0.02]"
+                className="border-line-strong border-b border-l p-0 group-hover:bg-overlay/[0.02]"
               >
                 {column.field ? (
                   renderBuiltIn(column.field, row)

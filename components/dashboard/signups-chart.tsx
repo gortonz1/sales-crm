@@ -145,7 +145,7 @@ export default function SignupsChart({
                   key={tick}
                   className={cn(
                     "absolute inset-x-0 h-px",
-                    tick === 0 ? "bg-line-strong" : "bg-white/[0.05]",
+                    tick === 0 ? "bg-line-strong" : "bg-overlay/[0.05]",
                   )}
                   style={{ bottom: (tick / max) * PLOT_HEIGHT }}
                 />
