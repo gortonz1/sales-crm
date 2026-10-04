@@ -2,7 +2,12 @@
 
 import { useState, type DragEvent } from "react";
 import CountBadge from "@/components/_ui/count-badge";
-import { daysSince, enquiryTypeLabel, type Lead, type LeadStage } from "@/lib/leads";
+import {
+  daysSince,
+  enquiryTypeLabel,
+  type Lead,
+  type LeadStage,
+} from "@/lib/leads";
 import { cn } from "@/lib/utils";
 
 export default function LeadsBoard({
@@ -62,7 +67,7 @@ export default function LeadsBoard({
                     }
                     onClick={() => onOpen(lead.id)}
                     className={cn(
-                      "border-line-strong bg-secondary hover:bg-muted flex w-full cursor-grab flex-col gap-1 rounded-lg border p-2.5 text-left transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring/60 active:cursor-grabbing",
+                      "border-line-strong bg-secondary hover:bg-muted focus-visible:ring-ring/60 flex w-full cursor-grab flex-col gap-1 rounded-lg border p-2.5 text-left transition-colors duration-150 outline-none focus-visible:ring-2 active:cursor-grabbing",
                       !lead.active && "opacity-60",
                     )}
                   >

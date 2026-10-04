@@ -7,21 +7,31 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/_ui/tabs";
 import LeadsTable from "./leads-table";
 import LeadsBoard from "./leads-board";
 import LeadDetail from "./lead-detail";
+import LeadsTimeline from "./leads-timeline";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
 import {
-  ALL_OPEN,
+  ALL,
+  GENUINE,
+  PIPELINE_STAGE_IDS,
   filterByStage,
   matchesSearch,
   type Lead,
   type LeadStage,
+  type TimelineEvent,
 } from "@/lib/leads";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 import MenuIcon from "@/public/assets/images/_common/menu.svg";
 import SearchIcon from "@/public/assets/images/_common/search.svg";
 
-type View = "list" | "board";
+type View = "list" | "board" | "timeline";
+
+const VIEWS: { value: View; label: string }[] = [
+  { value: "list", label: "List" },
+  { value: "board", label: "Board" },
+  { value: "timeline", label: "Timeline" },
+];
 export type LeadPatch = Pick<
   TablesUpdate<"leads">,
   "stage" | "active" | "notes"
@@ -30,13 +40,16 @@ export type LeadPatch = Pick<
 export default function Leads({
   stages,
   initialLeads,
+  initialEvents,
 }: {
   stages: LeadStage[];
   initialLeads: Lead[];
+  initialEvents: TimelineEvent[];
 }) {
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
   const [leads, setLeads] = useState(initialLeads);
-  const [filter, setFilter] = useState(ALL_OPEN);
+  const [events, setEvents] = useState(initialEvents);
+  const [filter, setFilter] = useState(GENUINE);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<View>("list");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -56,6 +69,20 @@ export default function Leads({
   );
   const selected = leads.find((lead) => lead.id === selectedId) ?? null;
   const newCount = leads.filter((lead) => lead.stage === "new").length;
+  const tabs = [
+    { value: GENUINE, label: "Genuine leads" },
+    ...stages.map((stage) => ({
+      value: stage.id,
+      label: stage.id === "new" ? "To review" : stage.label,
+    })),
+    { value: ALL, label: "All enquiries" },
+  ];
+  const boardStages =
+    filter === ALL
+      ? stages
+      : filter === GENUINE
+        ? stages.filter((stage) => PIPELINE_STAGE_IDS.includes(stage.id))
+        : stages.filter((stage) => stage.id === filter);
 
   async function updateLead(id: string, patch: LeadPatch) {
     const previous = leads.find((lead) => lead.id === id);
@@ -79,7 +106,32 @@ export default function Leads({
       );
       return false;
     }
-    setLeads((current) => current.map((lead) => (lead.id === id ? data : lead)));
+    setLeads((current) =>
+      current.map((lead) => (lead.id === id ? data : lead)),
+    );
+    const at = new Date().toISOString();
+    const added: TimelineEvent[] = [];
+    if (patch.stage !== undefined && patch.stage !== previous.stage) {
+      added.push({
+        lead_id: id,
+        kind: "stage",
+        from_stage: previous.stage,
+        to_stage: patch.stage,
+        body: null,
+        created_at: at,
+      });
+    }
+    if (patch.active !== undefined && patch.active !== previous.active) {
+      added.push({
+        lead_id: id,
+        kind: "active",
+        from_stage: null,
+        to_stage: null,
+        body: patch.active ? "Marked active" : "Marked no longer active",
+        created_at: at,
+      });
+    }
+    if (added.length) setEvents((current) => [...current, ...added]);
     return true;
   }
 
@@ -99,23 +151,14 @@ export default function Leads({
             </Button>
             <h1 className="truncate">Website leads</h1>
             {newCount > 0 && (
-              <span className="caption-style bg-muted shrink-0 rounded-full border border-[#363636] px-2 py-[3px]">
-                {newCount} to review
-              </span>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-1 rounded-full">
-            {(["list", "board"] as const).map((option) => (
-              <Button
-                key={option}
-                variant={view === option ? "muted" : "ghost"}
-                size="sm"
-                aria-pressed={view === option}
-                onClick={() => setView(option)}
+              <button
+                type="button"
+                onClick={() => setFilter("new")}
+                className="caption-style bg-muted hover:bg-secondary shrink-0 cursor-pointer rounded-full border border-[#363636] px-2 py-[3px] transition-colors duration-150"
               >
-                {option === "list" ? "List" : "Board"}
-              </Button>
-            ))}
+                {newCount} to review
+              </button>
+            )}
           </div>
         </div>
 
@@ -134,30 +177,39 @@ export default function Leads({
               className="pl-8"
             />
           </label>
-          <span className="caption-style text-subtle">
-            {leads.length} {leads.length === 1 ? "lead" : "leads"} from
-            themarketingtrainer.co.uk
-          </span>
+          <div className="flex items-center justify-between gap-3">
+            <span className="caption-style text-subtle">
+              {leads.length} {leads.length === 1 ? "enquiry" : "enquiries"}
+            </span>
+            <div className="flex shrink-0 items-center gap-1 rounded-full">
+              {VIEWS.map((option) => (
+                <Button
+                  key={option.value}
+                  variant={view === option.value ? "muted" : "ghost"}
+                  size="sm"
+                  aria-pressed={view === option.value}
+                  onClick={() => setView(option.value)}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {view === "list" && (
-          <Tabs value={filter} onValueChange={setFilter}>
-            <TabsList className="border-border overflow-x-auto border-b px-4">
-              <TabsTrigger value={ALL_OPEN} className="shrink-0 whitespace-nowrap">
-                All open ({filterByStage(searched, ALL_OPEN).length})
+        <Tabs value={filter} onValueChange={setFilter}>
+          <TabsList className="border-border overflow-x-auto border-b px-4">
+            {tabs.map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="shrink-0 whitespace-nowrap"
+              >
+                {tab.label} ({filterByStage(searched, tab.value).length})
               </TabsTrigger>
-              {stages.map((stage) => (
-                <TabsTrigger
-                  key={stage.id}
-                  value={stage.id}
-                  className="shrink-0 whitespace-nowrap"
-                >
-                  {stage.label} ({filterByStage(searched, stage.id).length})
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        )}
+            ))}
+          </TabsList>
+        </Tabs>
       </header>
 
       {error && (
@@ -184,12 +236,19 @@ export default function Leads({
             selectedId={selectedId}
             onOpen={setSelectedId}
           />
-        ) : (
+        ) : view === "board" ? (
           <LeadsBoard
             leads={searched}
-            stages={stages}
+            stages={boardStages}
             onOpen={setSelectedId}
             onMove={(id, stage) => updateLead(id, { stage })}
+          />
+        ) : (
+          <LeadsTimeline
+            leads={visible}
+            stages={stages}
+            events={events}
+            onOpen={setSelectedId}
           />
         )}
       </div>
