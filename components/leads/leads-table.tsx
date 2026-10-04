@@ -8,6 +8,7 @@ import type { LeadPatch } from "./leads";
 import { linkHref } from "@/lib/columns";
 import {
   COLD_COLOR,
+  INTEREST_OPTIONS,
   daysSince,
   enquiryTypeLabel,
   formatDate,
@@ -84,6 +85,15 @@ export default function LeadsTable({
               </span>
             )}
           </div>
+        );
+      case "interest":
+        return (
+          <PillCell
+            label="Interest"
+            value={lead.interest}
+            options={INTEREST_OPTIONS}
+            onCommit={(interest) => save({ interest })}
+          />
         );
       case "submitted_at":
         return (

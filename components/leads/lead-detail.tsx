@@ -21,6 +21,8 @@ import {
 } from "@/components/_ui/sheet";
 import { createClient } from "@/lib/supabase/client";
 import {
+  AI_COURSE_ENQUIRY,
+  INTEREST_OPTIONS,
   enquiryTypeLabel,
   formatDate,
   formatDateTime,
@@ -30,6 +32,8 @@ import {
 } from "@/lib/leads";
 import type { LeadPatch } from "./leads";
 import XIcon from "@/public/assets/images/companies/detail/x.svg";
+
+const NONE = "none";
 
 const textareaClass =
   "border-line-strong bg-secondary placeholder:text-subtle focus-visible:border-ring w-full resize-y rounded-lg border px-3 py-2.5 text-[14px] leading-[1.5] text-foreground outline-none transition-[border-color] duration-150";
@@ -166,6 +170,31 @@ function LeadDetailBody({
               </SelectContent>
             </Select>
           </div>
+          {lead.enquiry_type === AI_COURSE_ENQUIRY && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="lead-interest">Interest in the course</Label>
+              <Select
+                value={lead.interest ?? NONE}
+                onValueChange={(interest) =>
+                  onUpdate(lead.id, {
+                    interest: interest === NONE ? null : interest,
+                  })
+                }
+              >
+                <SelectTrigger id="lead-interest">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Not rated yet</SelectItem>
+                  {INTEREST_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="flex items-start gap-2">
             <Checkbox
               id="lead-active"

@@ -1,4 +1,5 @@
 import type { Tables } from "@/lib/supabase/database.types";
+import type { Option } from "@/lib/recruitment";
 
 export type Lead = Tables<"leads">;
 export type LeadStage = Tables<"lead_stages">;
@@ -14,6 +15,13 @@ export const ENQUIRY_TYPE_LABELS: Record<string, string> = {
 
 export const enquiryTypeLabel = (value: string | null) =>
   value ? (ENQUIRY_TYPE_LABELS[value] ?? value) : "—";
+
+export const AI_COURSE_ENQUIRY = "ai-level-4";
+
+export const INTEREST_OPTIONS: (Option & { color: string })[] = [
+  { value: "potential", label: "Potential", color: "#eab308" },
+  { value: "solid", label: "Solid", color: "#16803c" },
+];
 
 const DAY_MS = 86_400_000;
 

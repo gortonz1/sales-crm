@@ -16,10 +16,11 @@ Open [http://localhost:3000](http://localhost:3000).
 The CRM runs on the Supabase project **CRM** (`vzmfwfzdwakyzgdfnezf`).
 
 - `cp .env.example .env.local` for the Supabase URL and publishable key.
-- `/login` — sign in, or create an account the first time. Only addresses in `public.crm_members` (with a confirmed email) can see leads; add one with `insert into public.crm_members (email) values ('name@example.com');`.
+- `/login` — sign in, or create an account the first time. Only `@themarketingtrainer.co.uk` addresses can create an account (a trigger on `auth.users` rejects anything else, and the form checks before submitting). Only addresses in `public.crm_members` (with a confirmed email) can then see leads; add one with `insert into public.crm_members (email) values ('name@themarketingtrainer.co.uk');`.
 - `/leads` — website enquiries from themarketingtrainer.co.uk, as a list or a board by stage.
+- `/ai-course` — the AI in Marketing Level 4 enquiries and mock exam opt-ins, each with a built-in **Interest** column (Potential / Solid). The dashboard tile counts that column directly.
 - `supabase/migrations/` — the schema (leads, stages, activity log, access rules, `ingest_website_lead`).
-- `supabase/functions/website-lead/` — the endpoint the website posts each new enquiry to, authorised by an `x-crm-key` header whose SHA-256 is in `public.ingest_keys`. The website side lives in `the-marketing-trainer` (`src/lib/crm.ts`, `scripts/sync-crm.ts`).
+- `supabase/functions/website-lead/` — the endpoint the website posts each new enquiry to, authorised by an `x-crm-key` header whose SHA-256 is in `public.ingest_keys`. The website only ever adds leads: if an enquiry's `external_id` is already in the CRM the row is left exactly as it is, so edits made here are never overwritten by a re-sync or backfill. The website side lives in `the-marketing-trainer` (`src/lib/crm.ts`, `scripts/sync-crm.ts`).
 
 | Script                 | What it does                                                       |
 | ---------------------- | ------------------------------------------------------------------ |

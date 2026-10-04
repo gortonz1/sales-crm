@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/_ui/button";
 import Field from "@/components/_ui/field";
 import { Input } from "@/components/_ui/input";
+import { ALLOWED_EMAIL_DOMAIN, isAllowedEmail } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/public/assets/images/_common/logo.svg";
 
@@ -18,12 +19,19 @@ export default function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const emailAllowed = mode === "sign-in" || isAllowedEmail(email);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    setPending(true);
     setError(null);
     setNotice(null);
+    if (!emailAllowed) {
+      setError(
+        `Only @${ALLOWED_EMAIL_DOMAIN} email addresses can create an account.`,
+      );
+      return;
+    }
+    setPending(true);
     const supabase = createClient();
 
     if (mode === "sign-in") {
@@ -71,7 +79,15 @@ export default function LoginForm() {
       </div>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
-        <Field label="Email" htmlFor="email">
+        <Field
+          label="Email"
+          htmlFor="email"
+          hint={
+            mode === "sign-up"
+              ? `Your @${ALLOWED_EMAIL_DOMAIN} address`
+              : undefined
+          }
+        >
           <Input
             id="email"
             type="email"
@@ -114,7 +130,7 @@ export default function LoginForm() {
           variant="primary"
           size="md"
           type="submit"
-          disabled={pending || !email || password.length < 8}
+          disabled={pending || !email || !emailAllowed || password.length < 8}
           className="w-full"
         >
           {mode === "sign-in" ? "Sign in" : "Create account"}

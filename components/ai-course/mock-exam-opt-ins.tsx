@@ -14,7 +14,7 @@ import {
 } from "@/components/sheet/use-board-columns";
 import { withCustom, type BoardColumn } from "@/lib/columns";
 import { createClient } from "@/lib/supabase/client";
-import { formatDate } from "@/lib/leads";
+import { INTEREST_OPTIONS, formatDate } from "@/lib/leads";
 import type { Option } from "@/lib/recruitment";
 import type { Tables, TablesUpdate } from "@/lib/supabase/database.types";
 import { useCompaniesStore } from "@/stores/companies-store";
@@ -69,6 +69,15 @@ function renderBuiltIn(
           options={STATUSES}
           allowEmpty={false}
           onCommit={(status) => status && save({ status })}
+        />
+      );
+    case "interest":
+      return (
+        <PillCell
+          label="Interest"
+          value={item.interest}
+          options={INTEREST_OPTIONS}
+          onCommit={(interest) => save({ interest })}
         />
       );
     case "notes":

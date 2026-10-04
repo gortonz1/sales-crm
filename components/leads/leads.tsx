@@ -41,7 +41,7 @@ const VIEWS: { value: View; label: string }[] = [
 ];
 export type LeadPatch = Pick<
   TablesUpdate<"leads">,
-  "stage" | "active" | "notes" | "organisation" | "phone"
+  "stage" | "active" | "notes" | "organisation" | "phone" | "interest"
 >;
 
 export default function Leads({
