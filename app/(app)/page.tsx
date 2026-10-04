@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 const OPEN_LEAD_STAGES = PIPELINE_STAGE_IDS.filter(
   (stage) => stage !== "recruiting" && stage !== "started",
 );
+const SIGNED_STATUSES = ["signed-up", "completed"];
 const INTEREST_LABELS = ["potential", "solid"];
 
 function aiInterest(
@@ -73,7 +74,7 @@ export default async function DashboardPage() {
       .order("position"),
     supabase
       .from("recruitments")
-      .select("status, board_group, est_start, signed_up_on, source"),
+      .select("status, board_group, est_start, source"),
     supabase.from("leads").select("stage, active, enquiry_type, custom"),
     supabase
       .from("course_interests")
@@ -115,10 +116,9 @@ export default async function DashboardPage() {
     counts: {} as Record<string, number>,
   }));
   for (const item of allRecruitments) {
-    if (item.status !== "signed-up") continue;
-    const month = item.signed_up_on
-      ? monthKey(monthStart(new Date(`${item.signed_up_on}T00:00:00Z`)))
-      : item.est_start;
+    if (!isForecastable(item) || !SIGNED_STATUSES.includes(item.status))
+      continue;
+    const month = item.est_start;
     const entry = signups.find((row) => row.month === month);
     if (!entry) continue;
     const source = item.source ?? "none";

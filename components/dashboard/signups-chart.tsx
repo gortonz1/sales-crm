@@ -49,8 +49,8 @@ export default function SignupsChart({
         <div className="flex flex-col gap-1.5">
           <h2>Sign-ups by source</h2>
           <p className="caption-style text-subtle">
-            {total} signed up over the last 12 months, by month of sign-up (or
-            estimated start where no sign-up date is set).
+            {total} signed up or completed over the last 12 months, by estimated
+            start month, matching the monthly cards above.
           </p>
         </div>
         <Button
