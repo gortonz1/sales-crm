@@ -84,7 +84,10 @@ export function columnOptions(column: BoardColumn): Option[] {
   });
 }
 
-export function customValue(row: CustomRow, columnId: string): Json {
+export function customValue(
+  row: Pick<CustomRow, "custom">,
+  columnId: string,
+): Json {
   const custom = row.custom;
   if (!custom || typeof custom !== "object" || Array.isArray(custom))
     return null;

@@ -32,13 +32,13 @@ export const RECRUITMENT_GROUPS: (Option & { color: string })[] = [
   { value: "dead", label: "Dead", color: "#ef4444" },
 ];
 
-export const SOURCES: Option[] = [
-  { value: "website", label: "Website / LLM", color: "#579bfc" },
-  { value: "andy", label: "Andy", color: "#2f9e66" },
-  { value: "mitch", label: "Mitch", color: "#d9822b" },
-  { value: "repeat", label: "Repeat", color: "#8b5cf6" },
-  { value: "referral", label: "Referral", color: "#0e7490" },
-  { value: "email-marketing", label: "Email marketing", color: "#c026d3" },
+export const SOURCES: (Option & { color: string })[] = [
+  { value: "website", label: "Website / LLM", color: "#3987e5" },
+  { value: "andy", label: "Andy", color: "#d95926" },
+  { value: "mitch", label: "Mitch", color: "#199e70" },
+  { value: "repeat", label: "Repeat", color: "#c98500" },
+  { value: "referral", label: "Referral", color: "#d55181" },
+  { value: "email-marketing", label: "Email marketing", color: "#008300" },
 ];
 
 export const LEFT_STATUSES: Option[] = [

@@ -3,7 +3,14 @@ import Dashboard from "@/components/dashboard/dashboard";
 import NoAccess from "@/components/leads/no-access";
 import { PIPELINE_STAGE_IDS } from "@/lib/leads";
 import {
+  columnOptions,
+  customValue,
+  type BoardColumn,
+  type CustomRow,
+} from "@/lib/columns";
+import {
   PIPELINE_STATUSES,
+  addMonths,
   forecastMonths,
   isForecastable,
   monthKey,
@@ -11,29 +18,81 @@ import {
 } from "@/lib/recruitment";
 import { createClient } from "@/lib/supabase/server";
 
+const OPEN_LEAD_STAGES = PIPELINE_STAGE_IDS.filter(
+  (stage) => stage !== "recruiting" && stage !== "started",
+);
+const INTEREST_LABELS = ["potential", "solid"];
+
+function aiInterest(
+  columns: BoardColumn[],
+  optIns: Pick<CustomRow, "custom">[],
+  enquiries: Pick<CustomRow, "custom">[],
+) {
+  const counts = new Map<
+    string,
+    { key: string; label: string; color?: string; count: number }
+  >();
+  for (const label of INTEREST_LABELS) {
+    counts.set(label, { key: label, label: "", count: 0 });
+  }
+  let configured = false;
+  for (const column of columns) {
+    const rows = column.board === "mock-exam" ? optIns : enquiries;
+    for (const option of columnOptions(column)) {
+      const key = option.label.trim().toLowerCase();
+      const entry = counts.get(key);
+      if (!entry) continue;
+      configured = true;
+      entry.label ||= option.label.trim();
+      entry.color ??= option.color;
+      entry.count += rows.filter(
+        (row) => customValue(row, column.id) === option.value,
+      ).length;
+    }
+  }
+  return {
+    configured,
+    rows: [...counts.values()].filter((row) => row.label),
+  };
+}
+
 export const metadata: Metadata = { title: "Dashboard · Sales CRM" };
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const [stagesResult, recruitmentsResult, leadsResult, optInsResult] =
-    await Promise.all([
-      supabase
-        .from("lead_stages")
-        .select("id, label, position")
-        .order("position"),
-      supabase.from("recruitments").select("status, board_group, est_start"),
-      supabase.from("leads").select("stage, active, enquiry_type"),
-      supabase
-        .from("course_interests")
-        .select("id", { count: "exact", head: true })
-        .eq("source", "mock-exam"),
-    ]);
+  const [
+    stagesResult,
+    recruitmentsResult,
+    leadsResult,
+    optInsResult,
+    columnsResult,
+  ] = await Promise.all([
+    supabase
+      .from("lead_stages")
+      .select("id, label, position")
+      .order("position"),
+    supabase
+      .from("recruitments")
+      .select("status, board_group, est_start, signed_up_on, source"),
+    supabase.from("leads").select("stage, active, enquiry_type, custom"),
+    supabase
+      .from("course_interests")
+      .select("custom")
+      .eq("source", "mock-exam"),
+    supabase
+      .from("board_columns")
+      .select("*")
+      .in("board", ["mock-exam", "ai-enquiries"])
+      .is("field", null)
+      .eq("type", "status"),
+  ]);
 
   const stages = stagesResult.data ?? [];
   if (!stages.length) return <NoAccess />;
 
   const now = new Date();
-  const recruitments = (recruitmentsResult.data ?? []).filter(
+  const allRecruitments = recruitmentsResult.data ?? [];
+  const recruitments = allRecruitments.filter(
     (item) => isForecastable(item) && PIPELINE_STATUSES.includes(item.status),
   );
   const months = forecastMonths(now).map((month) => {
@@ -47,12 +106,31 @@ export default async function DashboardPage() {
     };
   });
 
+  const base = monthStart(now);
+  const signupMonths = Array.from({ length: 12 }, (_, i) =>
+    monthKey(addMonths(base, i - 11)),
+  );
+  const signups = signupMonths.map((month) => ({
+    month,
+    counts: {} as Record<string, number>,
+  }));
+  for (const item of allRecruitments) {
+    if (item.status !== "signed-up") continue;
+    const month = item.signed_up_on
+      ? monthKey(monthStart(new Date(`${item.signed_up_on}T00:00:00Z`)))
+      : item.est_start;
+    const entry = signups.find((row) => row.month === month);
+    if (!entry) continue;
+    const source = item.source ?? "none";
+    entry.counts[source] = (entry.counts[source] ?? 0) + 1;
+  }
+
   const leads = leadsResult.data ?? [];
   const activeLeads = leads.filter(
-    (lead) => lead.active && PIPELINE_STAGE_IDS.includes(lead.stage),
+    (lead) => lead.active && OPEN_LEAD_STAGES.includes(lead.stage),
   );
   const leadStages = stages
-    .filter((stage) => PIPELINE_STAGE_IDS.includes(stage.id))
+    .filter((stage) => OPEN_LEAD_STAGES.includes(stage.id))
     .map((stage) => ({
       id: stage.id,
       label: stage.label,
@@ -65,10 +143,12 @@ export default async function DashboardPage() {
       months={months}
       activeLeads={activeLeads.length}
       leadStages={leadStages}
-      aiEnquiries={
-        leads.filter((lead) => lead.enquiry_type === "ai-level-4").length
-      }
-      aiOptIns={optInsResult.count ?? 0}
+      aiInterest={aiInterest(
+        columnsResult.data ?? [],
+        optInsResult.data ?? [],
+        leads.filter((lead) => lead.enquiry_type === "ai-level-4"),
+      )}
+      signups={signups}
     />
   );
 }
