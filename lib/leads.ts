@@ -69,14 +69,16 @@ export function filterByStage(leads: Lead[], filter: string) {
 }
 
 export const STAGE_COLORS: Record<string, string> = {
-  new: "#5c5c5c",
-  "genuine-lead": "#184f95",
-  contacted: "#256abf",
-  "meeting-booked": "#3987e5",
-  recruiting: "#6da7ec",
-  started: "#b7d3f6",
+  new: "#6b6b6b",
+  "genuine-lead": "#4c8df6",
+  contacted: "#d9480f",
+  "meeting-booked": "#eab308",
+  recruiting: "#65d38a",
+  started: "#16803c",
   "not-a-lead": "#3a3a3a",
 };
+
+export const COLD_COLOR = "#ef4444";
 
 export const UNRECORDED = "unrecorded";
 

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import Button from "@/components/_ui/button";
 import {
+  COLD_COLOR,
   UNRECORDED,
   buildTimeline,
   formatDate,
@@ -156,7 +157,11 @@ export default function LeadsTimeline({
             </li>
           ))}
           <li className="flex items-center gap-1.5">
-            <span aria-hidden className="bg-soft h-3 w-0.5 rounded-full" />
+            <span
+              aria-hidden
+              className="h-3 w-0.5 rounded-full"
+              style={{ backgroundColor: COLD_COLOR }}
+            />
             Gone cold
           </li>
         </ul>
@@ -271,8 +276,11 @@ export default function LeadsTimeline({
                     {coldAt !== null && coldAt > start && (
                       <span
                         aria-hidden
-                        className="bg-soft absolute top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full"
-                        style={{ left: `calc(${pos(coldAt)}% + 2px)` }}
+                        className="absolute top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full"
+                        style={{
+                          left: `calc(${pos(coldAt)}% + 2px)`,
+                          backgroundColor: COLD_COLOR,
+                        }}
                       />
                     )}
                   </div>
