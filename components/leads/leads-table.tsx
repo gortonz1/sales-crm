@@ -8,7 +8,12 @@ import {
 } from "@/components/_ui/table";
 import Tag from "@/components/_ui/tag";
 import StageTag from "./stage-tag";
-import { daysSince, enquiryTypeLabel, formatDate, type Lead } from "@/lib/leads";
+import {
+  daysSince,
+  enquiryTypeLabel,
+  formatDate,
+  type Lead,
+} from "@/lib/leads";
 import { cn } from "@/lib/utils";
 
 export default function LeadsTable({

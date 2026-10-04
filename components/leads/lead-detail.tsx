@@ -191,13 +191,19 @@ function LeadDetailBody({
           <h2 className="caption-style text-subtle font-medium">Contact</h2>
           <dl className="grid grid-cols-[7em_1fr] gap-x-3 gap-y-2.5 text-[14px]">
             <Row label="Email">
-              <a href={`mailto:${lead.email}`} className="underline underline-offset-2 hover:text-soft">
+              <a
+                href={`mailto:${lead.email}`}
+                className="hover:text-soft underline underline-offset-2"
+              >
                 {lead.email}
               </a>
             </Row>
             <Row label="Phone">
               {lead.phone ? (
-                <a href={`tel:${lead.phone.replace(/\s/g, "")}`} className="underline underline-offset-2 hover:text-soft">
+                <a
+                  href={`tel:${lead.phone.replace(/\s/g, "")}`}
+                  className="hover:text-soft underline underline-offset-2"
+                >
                   {lead.phone}
                 </a>
               ) : (
@@ -232,7 +238,10 @@ function LeadDetailBody({
         )}
 
         <section className="flex flex-col gap-2">
-          <Label htmlFor="lead-notes" className="caption-style text-subtle font-medium">
+          <Label
+            htmlFor="lead-notes"
+            className="caption-style text-subtle font-medium"
+          >
             Internal notes
           </Label>
           <textarea

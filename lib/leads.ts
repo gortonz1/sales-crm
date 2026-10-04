@@ -1,19 +1,8 @@
-import type { TagTone } from "@/data/companies";
 import type { Tables } from "@/lib/supabase/database.types";
 
 export type Lead = Tables<"leads">;
 export type LeadStage = Tables<"lead_stages">;
 export type LeadActivity = Tables<"lead_activities">;
-
-export const STAGE_TONES: Record<string, TagTone> = {
-  new: "blue",
-  "genuine-lead": "purple",
-  contacted: "amber",
-  "meeting-booked": "orange",
-  recruiting: "teal",
-  started: "green",
-  "not-a-lead": "neutral",
-};
 
 export const ENQUIRY_TYPE_LABELS: Record<string, string> = {
   employer: "Employer",
@@ -25,9 +14,6 @@ export const ENQUIRY_TYPE_LABELS: Record<string, string> = {
 
 export const enquiryTypeLabel = (value: string | null) =>
   value ? (ENQUIRY_TYPE_LABELS[value] ?? value) : "—";
-
-export const stageTone = (stage: string): TagTone =>
-  STAGE_TONES[stage] ?? "neutral";
 
 const DAY_MS = 86_400_000;
 
@@ -62,11 +48,118 @@ export function matchesSearch(lead: Lead, query: string) {
     .some((value) => value!.toLowerCase().includes(q));
 }
 
-export const ALL_OPEN = "open";
+export const GENUINE = "genuine";
+export const ALL = "all";
+
+export const PIPELINE_STAGE_IDS = [
+  "genuine-lead",
+  "contacted",
+  "meeting-booked",
+  "recruiting",
+  "started",
+];
+
+export const isGenuine = (lead: Pick<Lead, "stage">) =>
+  PIPELINE_STAGE_IDS.includes(lead.stage);
 
 export function filterByStage(leads: Lead[], filter: string) {
-  if (filter === ALL_OPEN) {
-    return leads.filter((lead) => lead.stage !== "not-a-lead");
-  }
+  if (filter === ALL) return leads;
+  if (filter === GENUINE) return leads.filter(isGenuine);
   return leads.filter((lead) => lead.stage === filter);
+}
+
+export const STAGE_COLORS: Record<string, string> = {
+  new: "#5c5c5c",
+  "genuine-lead": "#184f95",
+  contacted: "#256abf",
+  "meeting-booked": "#3987e5",
+  recruiting: "#6da7ec",
+  started: "#b7d3f6",
+  "not-a-lead": "#3a3a3a",
+};
+
+export const UNRECORDED = "unrecorded";
+
+export const stageColor = (stage: string) =>
+  STAGE_COLORS[stage] ?? STAGE_COLORS.new;
+
+export type TimelineEvent = Pick<
+  LeadActivity,
+  "lead_id" | "kind" | "from_stage" | "to_stage" | "body" | "created_at"
+>;
+
+export type TimelineSegment = {
+  stage: string;
+  start: number;
+  end: number;
+};
+
+export type LeadTimeline = {
+  segments: TimelineSegment[];
+  coldAt: number | null;
+};
+
+export function buildTimeline(
+  lead: Lead,
+  events: TimelineEvent[],
+  now = Date.now(),
+): LeadTimeline {
+  const submitted = new Date(lead.submitted_at).getTime();
+  const sorted = [...events].sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  const marks: { stage: string; at: number }[] = [];
+  let coldAt: number | null = null;
+
+  for (const event of sorted) {
+    const at = Math.max(submitted, new Date(event.created_at).getTime());
+    if (event.kind === "received" || event.kind === "imported") {
+      const stage = event.to_stage ?? "new";
+      if (event.kind === "imported" && stage !== "new" && at > submitted) {
+        marks.push({ stage: UNRECORDED, at: submitted });
+      }
+      marks.push({ stage, at });
+    } else if (event.kind === "stage" && event.to_stage) {
+      marks.push({ stage: event.to_stage, at });
+    } else if (event.kind === "active") {
+      coldAt = event.body === "Marked no longer active" ? at : null;
+    }
+  }
+
+  if (marks.length === 0) marks.push({ stage: lead.stage, at: submitted });
+  if (marks[0].at > submitted)
+    marks.unshift({ stage: UNRECORDED, at: submitted });
+
+  if (!lead.active && coldAt === null) {
+    coldAt = Math.max(submitted, new Date(lead.stage_changed_at).getTime());
+  }
+  if (lead.active) coldAt = null;
+  const end = coldAt ?? now;
+
+  const segments: TimelineSegment[] = [];
+  marks.forEach((mark, i) => {
+    const next = i + 1 < marks.length ? marks[i + 1].at : end;
+    const isLast = i === marks.length - 1;
+    const segEnd = Math.min(next, end);
+    if (segEnd <= mark.at && !(isLast && mark.at <= end)) return;
+    const last = segments[segments.length - 1];
+    if (last && last.stage === mark.stage) last.end = segEnd;
+    else
+      segments.push({
+        stage: mark.stage,
+        start: mark.at,
+        end: Math.max(segEnd, mark.at),
+      });
+  });
+
+  if (segments.length === 0) {
+    segments.push({
+      stage: lead.stage,
+      start: submitted,
+      end: Math.max(end, submitted + 1),
+    });
+  }
+
+  return { segments, coldAt };
 }

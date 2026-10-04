@@ -7,16 +7,27 @@ export const metadata: Metadata = { title: "Website leads · Sales CRM" };
 
 export default async function LeadsPage() {
   const supabase = await createClient();
-  const [stagesResult, leadsResult] = await Promise.all([
+  const [stagesResult, leadsResult, eventsResult] = await Promise.all([
     supabase.from("lead_stages").select("*").order("position"),
     supabase
       .from("leads")
       .select("*")
       .order("submitted_at", { ascending: false }),
+    supabase
+      .from("lead_activities")
+      .select("lead_id, kind, from_stage, to_stage, body, created_at")
+      .in("kind", ["received", "imported", "stage", "active"])
+      .order("created_at"),
   ]);
 
   const stages = stagesResult.data ?? [];
   if (stages.length === 0) return <NoAccess />;
 
-  return <Leads stages={stages} initialLeads={leadsResult.data ?? []} />;
+  return (
+    <Leads
+      stages={stages}
+      initialLeads={leadsResult.data ?? []}
+      initialEvents={eventsResult.data ?? []}
+    />
+  );
 }
