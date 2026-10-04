@@ -1,9 +1,25 @@
-import type { Tables } from "@/lib/supabase/database.types";
+import type { Tables, TablesInsert } from "@/lib/supabase/database.types";
 import type { Option } from "@/lib/recruitment";
 
 export type Lead = Tables<"leads">;
 export type LeadStage = Tables<"lead_stages">;
 export type LeadActivity = Tables<"lead_activities">;
+export type NewLead = Pick<
+  TablesInsert<"leads">,
+  | "name"
+  | "email"
+  | "phone"
+  | "organisation"
+  | "enquiry_type"
+  | "message"
+  | "stage"
+  | "submitted_at"
+  | "stage_changed_at"
+>;
+
+export const EMAIL_SOURCE = "email";
+export const isAddedByHand = (lead: Pick<Lead, "source">) =>
+  lead.source === EMAIL_SOURCE;
 
 export const ENQUIRY_TYPE_LABELS: Record<string, string> = {
   employer: "Employer",
@@ -12,6 +28,10 @@ export const ENQUIRY_TYPE_LABELS: Record<string, string> = {
   funding: "Funding & levy",
   other: "Other",
 };
+
+export const ENQUIRY_TYPE_OPTIONS: Option[] = Object.entries(
+  ENQUIRY_TYPE_LABELS,
+).map(([value, label]) => ({ value, label }));
 
 export const enquiryTypeLabel = (value: string | null) =>
   value ? (ENQUIRY_TYPE_LABELS[value] ?? value) : "—";

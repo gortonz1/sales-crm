@@ -26,6 +26,7 @@ import {
   enquiryTypeLabel,
   formatDate,
   formatDateTime,
+  isAddedByHand,
   type Lead,
   type LeadActivity,
   type LeadStage,
@@ -351,8 +352,10 @@ function LeadDetailBody({
         </section>
 
         <p className="caption-style text-faint">
-          Website enquiry #{lead.external_id} · in the CRM since{" "}
-          {formatDate(lead.created_at)}
+          {isAddedByHand(lead)
+            ? "Added by hand from an email"
+            : `Website enquiry #${lead.external_id}`}{" "}
+          · in the CRM since {formatDate(lead.created_at)}
         </p>
       </div>
     </>

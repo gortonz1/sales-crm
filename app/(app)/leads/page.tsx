@@ -35,6 +35,7 @@ export default async function LeadsPage() {
       initialLeads={leadsResult.data ?? []}
       initialEvents={eventsResult.data ?? []}
       initialColumns={columnsResult.data ?? []}
+      canAdd
     />
   );
 }
