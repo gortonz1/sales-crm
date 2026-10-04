@@ -8,6 +8,13 @@ import LeadsTable from "./leads-table";
 import LeadsBoard from "./leads-board";
 import LeadDetail from "./lead-detail";
 import LeadsTimeline from "./leads-timeline";
+import ColumnsProvider from "@/components/sheet/columns-provider";
+import type { CustomValue } from "@/components/sheet/custom-cell";
+import {
+  saveCustomValue,
+  useBoardColumns,
+} from "@/components/sheet/use-board-columns";
+import { withCustom, type BoardColumn } from "@/lib/columns";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
 import {
@@ -34,7 +41,7 @@ const VIEWS: { value: View; label: string }[] = [
 ];
 export type LeadPatch = Pick<
   TablesUpdate<"leads">,
-  "stage" | "active" | "notes"
+  "stage" | "active" | "notes" | "organisation" | "phone"
 >;
 
 export default function Leads({
@@ -45,7 +52,11 @@ export default function Leads({
   defaultFilter = GENUINE,
   emptyMessage = "New contact-form enquiries from the website land here automatically.",
   subnav,
+  board = "leads",
+  initialColumns,
 }: {
+  board?: "leads" | "ai-enquiries";
+  initialColumns: BoardColumn[];
   stages: LeadStage[];
   initialLeads: Lead[];
   initialEvents: TimelineEvent[];
@@ -55,6 +66,7 @@ export default function Leads({
   subnav?: ReactNode;
 }) {
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
+  const columnsApi = useBoardColumns(board, initialColumns);
   const [leads, setLeads] = useState(initialLeads);
   const [events, setEvents] = useState(initialEvents);
   const [filter, setFilter] = useState(defaultFilter);
@@ -143,133 +155,158 @@ export default function Leads({
     return true;
   }
 
-  return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-      {subnav}
-      <header className="shrink-0">
-        <div className="flex items-center justify-between gap-2 px-4 py-[14px]">
-          <div className="flex min-w-0 items-center gap-2">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="lg:hidden"
-              aria-label="Open navigation"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <MenuIcon aria-hidden className="size-3.5" />
-            </Button>
-            <h1 className="truncate">{title}</h1>
-            {newCount > 0 && (
-              <button
-                type="button"
-                onClick={() => setFilter("new")}
-                className="caption-style bg-muted hover:bg-secondary shrink-0 cursor-pointer rounded-full border border-[#363636] px-2 py-[3px] transition-colors duration-150"
-              >
-                {newCount} to review
-              </button>
-            )}
-          </div>
-        </div>
+  async function saveCustom(id: string, columnId: string, value: CustomValue) {
+    const previous = leads.find((lead) => lead.id === id);
+    if (!previous) return;
+    setError(null);
+    setLeads((current) =>
+      current.map((lead) =>
+        lead.id === id ? withCustom(lead, columnId, value) : lead,
+      ),
+    );
+    const { data, error } = await saveCustomValue("leads", id, columnId, value);
+    setLeads((current) =>
+      current.map((lead) =>
+        lead.id !== id ? lead : error ? previous : { ...lead, custom: data },
+      ),
+    );
+    if (error)
+      setError(
+        `Couldn't save the change to ${previous.name}: ${error.message}`,
+      );
+  }
 
-        <div className="border-border flex flex-col gap-2 border-b px-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
-          <label className="relative block w-full sm:max-w-[20em]">
-            <span className="sr-only">Search leads</span>
-            <SearchIcon
-              aria-hidden
-              className="text-subtle pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2"
-            />
-            <Input
-              type="search"
-              placeholder="Search name, email, organisation…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="pl-8"
-            />
-          </label>
-          <div className="flex items-center justify-between gap-3">
-            <span className="caption-style text-subtle">
-              {leads.length} {leads.length === 1 ? "enquiry" : "enquiries"}
-            </span>
-            <div className="flex shrink-0 items-center gap-1 rounded-full">
-              {VIEWS.map((option) => (
-                <Button
-                  key={option.value}
-                  variant={view === option.value ? "muted" : "ghost"}
-                  size="sm"
-                  aria-pressed={view === option.value}
-                  onClick={() => setView(option.value)}
+  return (
+    <ColumnsProvider api={columnsApi}>
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {subnav}
+        <header className="shrink-0">
+          <div className="flex items-center justify-between gap-2 px-4 py-[14px]">
+            <div className="flex min-w-0 items-center gap-2">
+              <Button
+                variant="secondary"
+                size="icon"
+                className="lg:hidden"
+                aria-label="Open navigation"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <MenuIcon aria-hidden className="size-3.5" />
+              </Button>
+              <h1 className="truncate">{title}</h1>
+              {newCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFilter("new")}
+                  className="caption-style bg-muted hover:bg-secondary shrink-0 cursor-pointer rounded-full border border-[#363636] px-2 py-[3px] transition-colors duration-150"
                 >
-                  {option.label}
-                </Button>
-              ))}
+                  {newCount} to review
+                </button>
+              )}
             </div>
           </div>
+
+          <div className="border-border flex flex-col gap-2 border-b px-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="relative block w-full sm:max-w-[20em]">
+              <span className="sr-only">Search leads</span>
+              <SearchIcon
+                aria-hidden
+                className="text-subtle pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2"
+              />
+              <Input
+                type="search"
+                placeholder="Search name, email, organisation…"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="pl-8"
+              />
+            </label>
+            <div className="flex items-center justify-between gap-3">
+              <span className="caption-style text-subtle">
+                {leads.length} {leads.length === 1 ? "enquiry" : "enquiries"}
+              </span>
+              <div className="flex shrink-0 items-center gap-1 rounded-full">
+                {VIEWS.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant={view === option.value ? "muted" : "ghost"}
+                    size="sm"
+                    aria-pressed={view === option.value}
+                    onClick={() => setView(option.value)}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <Tabs value={filter} onValueChange={setFilter}>
+            <TabsList className="border-border overflow-x-auto border-b px-4">
+              {tabs.map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="shrink-0 whitespace-nowrap"
+                >
+                  {tab.label} ({filterByStage(searched, tab.value).length})
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        </header>
+
+        {error && (
+          <p
+            role="alert"
+            className="caption-style text-danger border-border shrink-0 border-b px-4 py-2"
+          >
+            {error}
+          </p>
+        )}
+
+        <div
+          className={cn(
+            "min-h-0 flex-1",
+            view === "list" ? "overflow-auto" : "overflow-hidden",
+          )}
+        >
+          {leads.length === 0 ? (
+            <EmptyState message={emptyMessage} />
+          ) : view === "list" ? (
+            <LeadsTable
+              leads={visible}
+              stages={stages}
+              selectedId={selectedId}
+              onOpen={setSelectedId}
+              onUpdate={updateLead}
+              onCustomChange={saveCustom}
+            />
+          ) : view === "board" ? (
+            <LeadsBoard
+              leads={searched}
+              stages={boardStages}
+              onOpen={setSelectedId}
+              onMove={(id, stage) => updateLead(id, { stage })}
+            />
+          ) : (
+            <LeadsTimeline
+              leads={visible}
+              stages={stages}
+              events={events}
+              onOpen={setSelectedId}
+            />
+          )}
         </div>
 
-        <Tabs value={filter} onValueChange={setFilter}>
-          <TabsList className="border-border overflow-x-auto border-b px-4">
-            {tabs.map((tab) => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                className="shrink-0 whitespace-nowrap"
-              >
-                {tab.label} ({filterByStage(searched, tab.value).length})
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </header>
-
-      {error && (
-        <p
-          role="alert"
-          className="caption-style text-danger border-border shrink-0 border-b px-4 py-2"
-        >
-          {error}
-        </p>
-      )}
-
-      <div
-        className={cn(
-          "min-h-0 flex-1",
-          view === "list" ? "overflow-auto" : "overflow-hidden",
-        )}
-      >
-        {leads.length === 0 ? (
-          <EmptyState message={emptyMessage} />
-        ) : view === "list" ? (
-          <LeadsTable
-            leads={visible}
-            stageLabels={stageLabels}
-            selectedId={selectedId}
-            onOpen={setSelectedId}
-          />
-        ) : view === "board" ? (
-          <LeadsBoard
-            leads={searched}
-            stages={boardStages}
-            onOpen={setSelectedId}
-            onMove={(id, stage) => updateLead(id, { stage })}
-          />
-        ) : (
-          <LeadsTimeline
-            leads={visible}
-            stages={stages}
-            events={events}
-            onOpen={setSelectedId}
-          />
-        )}
-      </div>
-
-      <LeadDetail
-        lead={selected}
-        stages={stages}
-        stageLabels={stageLabels}
-        onClose={() => setSelectedId(null)}
-        onUpdate={updateLead}
-      />
-    </section>
+        <LeadDetail
+          lead={selected}
+          stages={stages}
+          stageLabels={stageLabels}
+          onClose={() => setSelectedId(null)}
+          onUpdate={updateLead}
+        />
+      </section>
+    </ColumnsProvider>
   );
 }
 

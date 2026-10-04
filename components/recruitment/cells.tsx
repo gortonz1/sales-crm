@@ -5,8 +5,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/_ui/dropdown-menu";
+import { Checkbox } from "@/components/_ui/checkbox";
+import { linkHref } from "@/lib/columns";
 import { readableText, type Option } from "@/lib/recruitment";
 import { cn } from "@/lib/utils";
 
@@ -65,14 +68,21 @@ export function NumberCell({
   value,
   label,
   onCommit,
+  decimals = false,
 }: {
   value: number | null;
   label: string;
   onCommit: (value: number | null) => void;
+  decimals?: boolean;
 }) {
   const { draft, setDraft, commit, onKeyDown } = useCommit(
     value?.toString() ?? "",
     (next) => {
+      if (decimals) {
+        const n = Number(next);
+        onCommit(next.trim() === "" || !Number.isFinite(n) ? null : n);
+        return;
+      }
       const n = parseInt(next, 10);
       onCommit(Number.isNaN(n) ? null : Math.max(0, n));
     },
@@ -81,8 +91,9 @@ export function NumberCell({
     <input
       aria-label={label}
       type="number"
-      min={0}
-      inputMode="numeric"
+      min={decimals ? undefined : 0}
+      step={decimals ? "any" : undefined}
+      inputMode={decimals ? "decimal" : "numeric"}
       value={draft}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={commit}
@@ -129,6 +140,7 @@ export function PillCell({
   onCommit,
   neutral,
   allowEmpty = true,
+  onEditLabels,
 }: {
   value: string | null;
   label: string;
@@ -136,6 +148,7 @@ export function PillCell({
   onCommit: (value: string | null) => void;
   neutral?: boolean;
   allowEmpty?: boolean;
+  onEditLabels?: () => void;
 }) {
   const selected = options.find((option) => option.value === value);
   const fill = neutral ? undefined : selected?.color;
@@ -182,7 +195,69 @@ export function PillCell({
             Clear
           </DropdownMenuItem>
         )}
+        {onEditLabels && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onEditLabels} className="text-subtle">
+              Edit labels
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+export function CheckboxCell({
+  value,
+  label,
+  onCommit,
+}: {
+  value: boolean;
+  label: string;
+  onCommit: (value: boolean) => void;
+}) {
+  return (
+    <span className="flex h-9 items-center justify-center">
+      <Checkbox
+        aria-label={label}
+        checked={value}
+        onCheckedChange={(checked) => onCommit(checked === true)}
+      />
+    </span>
+  );
+}
+
+export function LinkCell({
+  value,
+  label,
+  type,
+  onCommit,
+}: {
+  value: string | null;
+  label: string;
+  type: "email" | "phone" | "link";
+  onCommit: (value: string | null) => void;
+}) {
+  return (
+    <span className="group/link flex items-center">
+      <TextCell
+        value={value}
+        label={label}
+        onCommit={onCommit}
+        className={cn(value && "text-[#7fb0ff]")}
+      />
+      {value && (
+        <a
+          href={linkHref(type, value)}
+          target={type === "link" ? "_blank" : undefined}
+          rel={type === "link" ? "noreferrer" : undefined}
+          aria-label={`Open ${value}`}
+          className="caption-style text-subtle hover:text-foreground hover:bg-muted mr-1 shrink-0 rounded-md px-1.5 py-1 opacity-0 transition-opacity duration-150 group-hover/link:opacity-100 focus-visible:opacity-100"
+        >
+          {type === "email" ? "Email" : type === "phone" ? "Call" : "Open"}
+        </a>
+      )}
+    </span>
   );
 }

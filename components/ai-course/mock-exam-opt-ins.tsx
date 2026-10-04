@@ -1,10 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Button from "@/components/_ui/button";
 import { Input } from "@/components/_ui/input";
 import { PillCell, TextCell } from "@/components/recruitment/cells";
 import AiCourseSubnav from "./subnav";
+import ColumnsProvider from "@/components/sheet/columns-provider";
+import type { CustomValue } from "@/components/sheet/custom-cell";
+import SheetTable from "@/components/sheet/sheet-table";
+import {
+  saveCustomValue,
+  useBoardColumns,
+} from "@/components/sheet/use-board-columns";
+import { withCustom, type BoardColumn } from "@/lib/columns";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/leads";
 import type { Option } from "@/lib/recruitment";
@@ -24,13 +32,66 @@ const STATUSES: Option[] = [
   { value: "not-interested", label: "Not interested", color: "#ef4444" },
 ];
 
-const columns = "grid-cols-[14em_16em_12em_5em_8em_10em_minmax(16em,1fr)]";
+const readOnly = "block truncate px-2.5 leading-9";
+
+function renderBuiltIn(
+  field: string,
+  item: OptIn,
+  save: (patch: OptInPatch) => void,
+): ReactNode {
+  switch (field) {
+    case "email":
+      return (
+        <a
+          href={`mailto:${item.email}`}
+          className={`${readOnly} underline-offset-2 hover:underline`}
+        >
+          {item.email}
+        </a>
+      );
+    case "exam":
+      return (
+        <span className={`${readOnly} text-soft`}>{item.exam ?? "—"}</span>
+      );
+    case "score_pct":
+      return (
+        <span className={`${readOnly} text-center tabular-nums`}>
+          {item.score_pct !== null ? `${item.score_pct}%` : "—"}
+        </span>
+      );
+    case "submitted_at":
+      return <span className={readOnly}>{formatDate(item.submitted_at)}</span>;
+    case "status":
+      return (
+        <PillCell
+          label="Status"
+          value={item.status}
+          options={STATUSES}
+          allowEmpty={false}
+          onCommit={(status) => status && save({ status })}
+        />
+      );
+    case "notes":
+      return (
+        <TextCell
+          label="Notes"
+          value={item.notes}
+          onCommit={(notes) => save({ notes })}
+        />
+      );
+    default:
+      return null;
+  }
+}
 
 export default function MockExamOptIns({
   initialItems,
+  initialColumns,
 }: {
   initialItems: OptIn[];
+  initialColumns: BoardColumn[];
 }) {
+  const columnsApi = useBoardColumns("mock-exam", initialColumns);
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
   const [items, setItems] = useState(initialItems);
   const [query, setQuery] = useState("");
@@ -74,145 +135,122 @@ export default function MockExamOptIns({
     );
   }
 
+  async function saveCustom(id: string, columnId: string, value: CustomValue) {
+    const previous = items.find((item) => item.id === id);
+    if (!previous) return;
+    setError(null);
+    setItems((current) =>
+      current.map((item) =>
+        item.id === id ? withCustom(item, columnId, value) : item,
+      ),
+    );
+    const { data, error } = await saveCustomValue(
+      "course_interests",
+      id,
+      columnId,
+      value,
+    );
+    setItems((current) =>
+      current.map((item) =>
+        item.id !== id ? item : error ? previous : { ...item, custom: data },
+      ),
+    );
+    if (error)
+      setError(
+        `Couldn't save ${previous.name ?? previous.email}: ${error.message}`,
+      );
+  }
+
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <AiCourseSubnav current="/ai-course/mock-exam" />
-      <header className="shrink-0">
-        <div className="flex items-center gap-2 px-4 py-[14px]">
-          <Button
-            variant="secondary"
-            size="icon"
-            className="lg:hidden"
-            aria-label="Open navigation"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <MenuIcon aria-hidden className="size-3.5" />
-          </Button>
-          <h1 className="truncate">AI in Marketing Level 4</h1>
-          {newCount > 0 && (
-            <span className="caption-style bg-muted shrink-0 rounded-full border border-[#363636] px-2 py-[3px]">
-              {newCount} new
+    <ColumnsProvider api={columnsApi}>
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <AiCourseSubnav current="/ai-course/mock-exam" />
+        <header className="shrink-0">
+          <div className="flex items-center gap-2 px-4 py-[14px]">
+            <Button
+              variant="secondary"
+              size="icon"
+              className="lg:hidden"
+              aria-label="Open navigation"
+              onClick={() => setSidebarOpen(true)}
+            >
+              <MenuIcon aria-hidden className="size-3.5" />
+            </Button>
+            <h1 className="truncate">AI in Marketing Level 4</h1>
+            {newCount > 0 && (
+              <span className="caption-style bg-muted shrink-0 rounded-full border border-[#363636] px-2 py-[3px]">
+                {newCount} new
+              </span>
+            )}
+          </div>
+          <div className="border-border flex flex-col gap-2 border-b px-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <label className="relative block w-full sm:max-w-[20em]">
+              <span className="sr-only">Search opt-ins</span>
+              <SearchIcon
+                aria-hidden
+                className="text-subtle pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2"
+              />
+              <Input
+                type="search"
+                placeholder="Search name, email, exam, notes…"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="pl-8"
+              />
+            </label>
+            <span className="caption-style text-subtle">
+              {items.length} mock exam{" "}
+              {items.length === 1 ? "candidate" : "candidates"} opted in
             </span>
+          </div>
+        </header>
+
+        {error && (
+          <p
+            role="alert"
+            className="caption-style text-danger border-border shrink-0 border-b px-4 py-2"
+          >
+            {error}
+          </p>
+        )}
+
+        <div className="min-h-0 flex-1 overflow-auto">
+          {items.length === 0 ? (
+            <div className="flex h-full items-center justify-center px-4 py-16">
+              <div className="flex max-w-[30em] flex-col gap-2 text-center">
+                <p className="lead-style font-medium">No opt-ins yet</p>
+                <p className="text-soft">
+                  Mock exam candidates who tick &ldquo;wants to hear about the
+                  AI in Marketing course&rdquo; appear here. Past opt-ins come
+                  across when you press Import to CRM on the website&apos;s
+                  Enquiries dashboard.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4">
+              <SheetTable
+                rows={visible}
+                pinned={{
+                  label: "Name",
+                  width: 14,
+                  render: (item) => (
+                    <span className="block truncate px-2.5 font-medium">
+                      {item.name ?? "—"}
+                    </span>
+                  ),
+                }}
+                renderBuiltIn={(field, item) =>
+                  renderBuiltIn(field, item, (patch) => save(item.id, patch))
+                }
+                onCustomChange={(item, column, value) =>
+                  saveCustom(item.id, column.id, value)
+                }
+              />
+            </div>
           )}
         </div>
-        <div className="border-border flex flex-col gap-2 border-b px-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
-          <label className="relative block w-full sm:max-w-[20em]">
-            <span className="sr-only">Search opt-ins</span>
-            <SearchIcon
-              aria-hidden
-              className="text-subtle pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2"
-            />
-            <Input
-              type="search"
-              placeholder="Search name, email, exam, notes…"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="pl-8"
-            />
-          </label>
-          <span className="caption-style text-subtle">
-            {items.length} mock exam{" "}
-            {items.length === 1 ? "candidate" : "candidates"} opted in
-          </span>
-        </div>
-      </header>
-
-      {error && (
-        <p
-          role="alert"
-          className="caption-style text-danger border-border shrink-0 border-b px-4 py-2"
-        >
-          {error}
-        </p>
-      )}
-
-      <div className="min-h-0 flex-1 overflow-auto">
-        {items.length === 0 ? (
-          <div className="flex h-full items-center justify-center px-4 py-16">
-            <div className="flex max-w-[30em] flex-col gap-2 text-center">
-              <p className="lead-style font-medium">No opt-ins yet</p>
-              <p className="text-soft">
-                Mock exam candidates who tick &ldquo;wants to hear about the AI
-                in Marketing course&rdquo; appear here. Past opt-ins come across
-                when you press Import to CRM on the website&apos;s Enquiries
-                dashboard.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div role="table" className="min-w-max text-[13px]">
-            <div
-              role="row"
-              className={`bg-background border-border sticky top-0 z-10 grid ${columns} border-b`}
-            >
-              {[
-                "Name",
-                "Email",
-                "Exam",
-                "Score",
-                "Opted in",
-                "Status",
-                "Notes",
-              ].map((label) => (
-                <span
-                  key={label}
-                  role="columnheader"
-                  className="caption-style text-subtle truncate px-2.5 py-2.5 first:pl-4"
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-            {visible.map((item) => (
-              <div
-                key={item.id}
-                role="row"
-                className={`border-border grid ${columns} items-center border-b hover:bg-white/[0.02]`}
-              >
-                <span
-                  role="cell"
-                  className="truncate py-2.5 pr-2.5 pl-4 font-medium"
-                >
-                  {item.name ?? "—"}
-                </span>
-                <span role="cell" className="truncate px-2.5">
-                  <a
-                    href={`mailto:${item.email}`}
-                    className="underline-offset-2 hover:underline"
-                  >
-                    {item.email}
-                  </a>
-                </span>
-                <span role="cell" className="text-soft truncate px-2.5">
-                  {item.exam ?? "—"}
-                </span>
-                <span role="cell" className="px-2.5 tabular-nums">
-                  {item.score_pct !== null ? `${item.score_pct}%` : "—"}
-                </span>
-                <span role="cell" className="px-2.5">
-                  {formatDate(item.submitted_at)}
-                </span>
-                <span role="cell" className="self-stretch">
-                  <PillCell
-                    label="Status"
-                    value={item.status}
-                    options={STATUSES}
-                    allowEmpty={false}
-                    onCommit={(status) => status && save(item.id, { status })}
-                  />
-                </span>
-                <span role="cell">
-                  <TextCell
-                    label="Notes"
-                    value={item.notes}
-                    onCommit={(notes) => save(item.id, { notes })}
-                  />
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
+      </section>
+    </ColumnsProvider>
   );
 }

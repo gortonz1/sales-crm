@@ -12,8 +12,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      board_columns: {
+        Row: {
+          board: string
+          created_at: string
+          field: string | null
+          hidden: boolean
+          id: string
+          label: string
+          options: Json
+          position: number
+          type: string
+          updated_at: string
+          width: number
+        }
+        Insert: {
+          board: string
+          label: string
+          options?: Json
+          position: number
+          type: string
+          width?: number
+        }
+        Update: {
+          hidden?: boolean
+          label?: string
+          options?: Json
+          position?: number
+          type?: string
+          width?: number
+        }
+        Relationships: []
+      }
       course_interests: {
         Row: {
+          custom: Json
           created_at: string
           email: string
           exam: string | null
@@ -28,6 +61,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          custom?: Json
           email: string
           external_id: string
           source: string
@@ -39,6 +73,7 @@ export type Database = {
           submitted_at?: string
         }
         Update: {
+          custom?: Json
           notes?: string | null
           status?: string
         }
@@ -117,6 +152,7 @@ export type Database = {
       }
       recruitments: {
         Row: {
+          custom: Json
           board_group: string
           client: string
           contact: string | null
@@ -142,6 +178,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          custom?: Json
           board_group?: string
           client: string
           contact?: string | null
@@ -162,6 +199,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          custom?: Json
           board_group?: string
           client?: string
           contact?: string | null
@@ -191,6 +229,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          custom: Json
           active: boolean
           consent: boolean
           created_at: string
@@ -212,6 +251,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          custom?: Json
           active?: boolean
           consent?: boolean
           created_at?: string
@@ -233,6 +273,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          custom?: Json
           active?: boolean
           consent?: boolean
           created_at?: string
@@ -266,6 +307,14 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
+      reorder_board_columns: {
+        Args: { board_name: string; ids: string[] }
+        Returns: undefined
+      }
+      set_custom_value: {
+        Args: { column_id: string; row_id: string; target: string; value: Json }
+        Returns: Json
+      }
       ingest_website_lead: {
         Args: { key_hash: string; lead: Json }
         Returns: Json

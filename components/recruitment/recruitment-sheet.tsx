@@ -14,215 +14,158 @@ import {
 } from "@/lib/recruitment";
 import { cn } from "@/lib/utils";
 import { DateCell, NumberCell, PillCell, TextCell } from "./cells";
+import SheetTable from "@/components/sheet/sheet-table";
+import type { CustomValue } from "@/components/sheet/custom-cell";
 import ChevronDownIcon from "@/public/assets/images/_common/chevron-down.svg";
 
-type Column = {
-  key: string;
-  label: string;
-  width: string;
-  render: (
-    item: Recruitment,
-    save: (patch: RecruitmentPatch) => void,
-  ) => ReactNode;
-};
-
-const COLUMNS: Column[] = [
-  {
-    key: "status",
-    label: "Status",
-    width: "9.5em",
-    render: (item, save) => (
-      <PillCell
-        label="Status"
-        value={item.status}
-        options={RECRUITMENT_STATUSES}
-        allowEmpty={false}
-        onCommit={(status) => status && save({ status })}
-      />
-    ),
-  },
-  {
-    key: "est_start",
-    label: "Est. start",
-    width: "8em",
-    render: (item, save) => (
-      <PillCell
-        label="Est. start"
-        value={item.est_start}
-        options={monthOptions(item.est_start)}
-        neutral
-        onCommit={(est_start) => save({ est_start })}
-      />
-    ),
-  },
-  {
-    key: "source",
-    label: "Source",
-    width: "9em",
-    render: (item, save) => (
-      <PillCell
-        label="Source"
-        value={item.source}
-        options={SOURCES}
-        onCommit={(source) => save({ source })}
-      />
-    ),
-  },
-  {
-    key: "shortlist_delivery",
-    label: "Shortlist delivery",
-    width: "9.5em",
-    render: (item, save) => (
-      <DateCell
-        label="Shortlist delivery"
-        value={item.shortlist_delivery}
-        onCommit={(shortlist_delivery) => save({ shortlist_delivery })}
-      />
-    ),
-  },
-  {
-    key: "shortlist_count",
-    label: "# in shortlist",
-    width: "6.5em",
-    render: (item, save) => (
-      <NumberCell
-        label="Candidates in shortlist"
-        value={item.shortlist_count}
-        onCommit={(shortlist_count) => save({ shortlist_count })}
-      />
-    ),
-  },
-  {
-    key: "interviewees",
-    label: "Interviewees",
-    width: "8em",
-    render: (item, save) => (
-      <TextCell
-        label="Interviewees"
-        value={item.interviewees}
-        onCommit={(interviewees) => save({ interviewees })}
-      />
-    ),
-  },
-  {
-    key: "interview_date",
-    label: "Interview date",
-    width: "9.5em",
-    render: (item, save) => (
-      <DateCell
-        label="Interview date"
-        value={item.interview_date}
-        onCommit={(interview_date) => save({ interview_date })}
-      />
-    ),
-  },
-  {
-    key: "notes",
-    label: "Notes",
-    width: "22em",
-    render: (item, save) => (
-      <TextCell
-        label="Notes"
-        value={item.notes}
-        onCommit={(notes) => save({ notes })}
-      />
-    ),
-  },
-  {
-    key: "das",
-    label: "DAS",
-    width: "8em",
-    render: (item, save) => (
-      <PillCell
-        label="DAS"
-        value={item.das}
-        options={PAPERWORK_STATUSES}
-        onCommit={(das) => save({ das })}
-      />
-    ),
-  },
-  {
-    key: "deposit",
-    label: "Deposit",
-    width: "8em",
-    render: (item, save) => (
-      <PillCell
-        label="Deposit"
-        value={item.deposit}
-        options={PAPERWORK_STATUSES}
-        onCommit={(deposit) => save({ deposit })}
-      />
-    ),
-  },
-  {
-    key: "contract",
-    label: "Contract",
-    width: "8em",
-    render: (item, save) => (
-      <PillCell
-        label="Contract"
-        value={item.contract}
-        options={CONTRACT_STATUSES}
-        onCommit={(contract) => save({ contract })}
-      />
-    ),
-  },
-  {
-    key: "signed_up_on",
-    label: "Date of sign-up",
-    width: "9.5em",
-    render: (item, save) => (
-      <DateCell
-        label="Date of sign-up"
-        value={item.signed_up_on}
-        onCommit={(signed_up_on) => save({ signed_up_on })}
-      />
-    ),
-  },
-  {
-    key: "left_status",
-    label: "Left",
-    width: "8em",
-    render: (item, save) => (
-      <PillCell
-        label="Left"
-        value={item.left_status}
-        options={LEFT_STATUSES}
-        onCommit={(left_status) => save({ left_status })}
-      />
-    ),
-  },
-  {
-    key: "contact",
-    label: "Contact",
-    width: "14em",
-    render: (item, save) => (
-      <TextCell
-        label="Contact"
-        value={item.contact}
-        onCommit={(contact) => save({ contact })}
-      />
-    ),
-  },
-];
-
-const CLIENT_WIDTH = "16em";
+function renderBuiltIn(
+  field: string,
+  item: Recruitment,
+  save: (patch: RecruitmentPatch) => void,
+): ReactNode {
+  switch (field) {
+    case "status":
+      return (
+        <PillCell
+          label="Status"
+          value={item.status}
+          options={RECRUITMENT_STATUSES}
+          allowEmpty={false}
+          onCommit={(status) => status && save({ status })}
+        />
+      );
+    case "est_start":
+      return (
+        <PillCell
+          label="Est. start"
+          value={item.est_start}
+          options={monthOptions(item.est_start)}
+          neutral
+          onCommit={(est_start) => save({ est_start })}
+        />
+      );
+    case "source":
+      return (
+        <PillCell
+          label="Source"
+          value={item.source}
+          options={SOURCES}
+          onCommit={(source) => save({ source })}
+        />
+      );
+    case "shortlist_delivery":
+      return (
+        <DateCell
+          label="Shortlist delivery"
+          value={item.shortlist_delivery}
+          onCommit={(shortlist_delivery) => save({ shortlist_delivery })}
+        />
+      );
+    case "shortlist_count":
+      return (
+        <NumberCell
+          label="Candidates in shortlist"
+          value={item.shortlist_count}
+          onCommit={(shortlist_count) => save({ shortlist_count })}
+        />
+      );
+    case "interviewees":
+      return (
+        <TextCell
+          label="Interviewees"
+          value={item.interviewees}
+          onCommit={(interviewees) => save({ interviewees })}
+        />
+      );
+    case "interview_date":
+      return (
+        <DateCell
+          label="Interview date"
+          value={item.interview_date}
+          onCommit={(interview_date) => save({ interview_date })}
+        />
+      );
+    case "notes":
+      return (
+        <TextCell
+          label="Notes"
+          value={item.notes}
+          onCommit={(notes) => save({ notes })}
+        />
+      );
+    case "das":
+      return (
+        <PillCell
+          label="DAS"
+          value={item.das}
+          options={PAPERWORK_STATUSES}
+          onCommit={(das) => save({ das })}
+        />
+      );
+    case "deposit":
+      return (
+        <PillCell
+          label="Deposit"
+          value={item.deposit}
+          options={PAPERWORK_STATUSES}
+          onCommit={(deposit) => save({ deposit })}
+        />
+      );
+    case "contract":
+      return (
+        <PillCell
+          label="Contract"
+          value={item.contract}
+          options={CONTRACT_STATUSES}
+          onCommit={(contract) => save({ contract })}
+        />
+      );
+    case "signed_up_on":
+      return (
+        <DateCell
+          label="Date of sign-up"
+          value={item.signed_up_on}
+          onCommit={(signed_up_on) => save({ signed_up_on })}
+        />
+      );
+    case "left_status":
+      return (
+        <PillCell
+          label="Left"
+          value={item.left_status}
+          options={LEFT_STATUSES}
+          onCommit={(left_status) => save({ left_status })}
+        />
+      );
+    case "contact":
+      return (
+        <TextCell
+          label="Contact"
+          value={item.contact}
+          onCommit={(contact) => save({ contact })}
+        />
+      );
+    default:
+      return null;
+  }
+}
 
 export default function RecruitmentSheet({
   items,
   onSave,
+  onCustomChange,
   onOpen,
   onAdd,
 }: {
   items: Recruitment[];
   onSave: (id: string, patch: RecruitmentPatch) => void;
+  onCustomChange: (id: string, columnId: string, value: CustomValue) => void;
   onOpen: (id: string) => void;
   onAdd: (client: string, group: string) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     dead: true,
   });
-  const tableWidth = `calc(${CLIENT_WIDTH} + ${COLUMNS.map((c) => c.width).join(" + ")})`;
 
   return (
     <div className="h-full overflow-auto pb-10">
@@ -265,80 +208,44 @@ export default function RecruitmentSheet({
 
             {!isCollapsed && (
               <div className="px-4">
-                <table
-                  className="border-line-strong table-fixed border-separate border-spacing-0 overflow-hidden rounded-lg border-y border-r text-[13px]"
-                  style={{
-                    width: tableWidth,
-                    borderLeft: `4px solid ${group.color}`,
-                  }}
-                >
-                  <colgroup>
-                    <col style={{ width: CLIENT_WIDTH }} />
-                    {COLUMNS.map((column) => (
-                      <col key={column.key} style={{ width: column.width }} />
-                    ))}
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th className="bg-card border-line-strong caption-style text-subtle sticky left-0 z-[2] h-9 border-r border-b px-2.5 text-left font-normal">
-                        Client
-                      </th>
-                      {COLUMNS.map((column) => (
-                        <th
-                          key={column.key}
-                          className="bg-card border-line-strong caption-style text-subtle h-9 truncate border-b border-l px-2 text-center font-normal"
-                        >
-                          {column.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((item) => (
-                      <tr key={item.id} className="group">
-                        <td className="bg-background group-hover:bg-secondary border-line-strong sticky left-0 z-[1] border-r border-b p-0">
-                          <div className="flex items-center">
-                            <TextCell
-                              label="Client"
-                              value={item.client}
-                              className="font-medium"
-                              onCommit={(client) =>
-                                client && onSave(item.id, { client })
-                              }
-                            />
-                            <button
-                              type="button"
-                              onClick={() => onOpen(item.id)}
-                              className="caption-style text-subtle hover:text-foreground hover:bg-muted mr-1.5 shrink-0 cursor-pointer rounded-md px-1.5 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
-                            >
-                              Open
-                            </button>
-                          </div>
-                        </td>
-                        {COLUMNS.map((column) => (
-                          <td
-                            key={column.key}
-                            className="border-line-strong border-b border-l p-0 group-hover:bg-white/[0.02]"
-                          >
-                            {column.render(item, (patch) =>
-                              onSave(item.id, patch),
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                    <tr>
-                      <td
-                        colSpan={COLUMNS.length + 1}
-                        className="bg-background p-0"
-                      >
-                        <AddRow
-                          onAdd={(client) => onAdd(client, group.value)}
+                <SheetTable
+                  rows={rows}
+                  accent={group.color}
+                  pinned={{
+                    label: "Client",
+                    width: 16,
+                    render: (item) => (
+                      <div className="flex items-center">
+                        <TextCell
+                          label="Client"
+                          value={item.client}
+                          className="font-medium"
+                          onCommit={(client) =>
+                            client && onSave(item.id, { client })
+                          }
                         />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                        <button
+                          type="button"
+                          onClick={() => onOpen(item.id)}
+                          className="caption-style text-subtle hover:text-foreground hover:bg-muted mr-1.5 shrink-0 cursor-pointer rounded-md px-1.5 py-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-visible:opacity-100"
+                        >
+                          Open
+                        </button>
+                      </div>
+                    ),
+                  }}
+                  renderBuiltIn={(field, item) =>
+                    renderBuiltIn(field, item, (patch) =>
+                      onSave(item.id, patch),
+                    )
+                  }
+                  onCustomChange={(item, column, value) =>
+                    onCustomChange(item.id, column.id, value)
+                  }
+                  footer={
+                    <AddRow onAdd={(client) => onAdd(client, group.value)} />
+                  }
+                />
               </div>
             )}
           </section>
