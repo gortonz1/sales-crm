@@ -28,6 +28,15 @@ import GripIcon from "@/public/assets/images/_common/grip.svg";
 
 const ROW_DRAG_TYPE = "application/x-crm-recruitment";
 
+function byEstStart(a: Recruitment, b: Recruitment) {
+  if (a.est_start !== b.est_start) {
+    if (!a.est_start) return 1;
+    if (!b.est_start) return -1;
+    return a.est_start < b.est_start ? 1 : -1;
+  }
+  return a.client.localeCompare(b.client);
+}
+
 function renderBuiltIn(
   field: string,
   item: Recruitment,
@@ -186,7 +195,9 @@ export default function RecruitmentSheet({
   return (
     <div className="h-full overflow-auto pb-10">
       {RECRUITMENT_GROUPS.map((group) => {
-        const rows = items.filter((item) => item.board_group === group.value);
+        const rows = items
+          .filter((item) => item.board_group === group.value)
+          .sort(byEstStart);
         const isCollapsed = collapsed[group.value];
         return (
           <section
