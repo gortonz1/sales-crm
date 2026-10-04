@@ -12,6 +12,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      course_interests: {
+        Row: {
+          created_at: string
+          email: string
+          exam: string | null
+          external_id: string
+          id: string
+          name: string | null
+          notes: string | null
+          score_pct: number | null
+          source: string
+          status: string
+          submitted_at: string
+          updated_at: string
+        }
+        Insert: {
+          email: string
+          external_id: string
+          source: string
+          exam?: string | null
+          name?: string | null
+          notes?: string | null
+          score_pct?: number | null
+          status?: string
+          submitted_at?: string
+        }
+        Update: {
+          notes?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       crm_members: {
         Row: { added_at: string; email: string }
         Insert: { added_at?: string; email: string }

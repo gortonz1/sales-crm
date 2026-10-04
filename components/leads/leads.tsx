@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Button from "@/components/_ui/button";
 import { Input } from "@/components/_ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/_ui/tabs";
@@ -44,6 +44,7 @@ export default function Leads({
   title = "Website leads",
   defaultFilter = GENUINE,
   emptyMessage = "New contact-form enquiries from the website land here automatically.",
+  subnav,
 }: {
   stages: LeadStage[];
   initialLeads: Lead[];
@@ -51,6 +52,7 @@ export default function Leads({
   title?: string;
   defaultFilter?: string;
   emptyMessage?: string;
+  subnav?: ReactNode;
 }) {
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
   const [leads, setLeads] = useState(initialLeads);
@@ -143,6 +145,7 @@ export default function Leads({
 
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {subnav}
       <header className="shrink-0">
         <div className="flex items-center justify-between gap-2 px-4 py-[14px]">
           <div className="flex min-w-0 items-center gap-2">

@@ -1,0 +1,218 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Button from "@/components/_ui/button";
+import { Input } from "@/components/_ui/input";
+import { PillCell, TextCell } from "@/components/recruitment/cells";
+import AiCourseSubnav from "./subnav";
+import { createClient } from "@/lib/supabase/client";
+import { formatDate } from "@/lib/leads";
+import type { Option } from "@/lib/recruitment";
+import type { Tables, TablesUpdate } from "@/lib/supabase/database.types";
+import { useCompaniesStore } from "@/stores/companies-store";
+import MenuIcon from "@/public/assets/images/_common/menu.svg";
+import SearchIcon from "@/public/assets/images/_common/search.svg";
+
+type OptIn = Tables<"course_interests">;
+type OptInPatch = TablesUpdate<"course_interests">;
+
+const STATUSES: Option[] = [
+  { value: "new", label: "New", color: "#6b6b6b" },
+  { value: "contacted", label: "Contacted", color: "#d9480f" },
+  { value: "applying", label: "Applying", color: "#eab308" },
+  { value: "enrolled", label: "Enrolled", color: "#16803c" },
+  { value: "not-interested", label: "Not interested", color: "#ef4444" },
+];
+
+const columns = "grid-cols-[14em_16em_12em_5em_8em_10em_minmax(16em,1fr)]";
+
+export default function MockExamOptIns({
+  initialItems,
+}: {
+  initialItems: OptIn[];
+}) {
+  const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
+  const [items, setItems] = useState(initialItems);
+  const [query, setQuery] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((item) =>
+      [item.name, item.email, item.exam, item.notes]
+        .filter(Boolean)
+        .some((value) => value!.toLowerCase().includes(q)),
+    );
+  }, [items, query]);
+  const newCount = items.filter((item) => item.status === "new").length;
+
+  async function save(id: string, patch: OptInPatch) {
+    const previous = items.find((item) => item.id === id);
+    if (!previous) return;
+    setError(null);
+    setItems((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+    const { data, error } = await createClient()
+      .from("course_interests")
+      .update(patch)
+      .eq("id", id)
+      .select()
+      .single();
+    if (error || !data) {
+      setItems((current) =>
+        current.map((item) => (item.id === id ? previous : item)),
+      );
+      setError(
+        `Couldn't save ${previous.name ?? previous.email}: ${error?.message ?? "no response"}`,
+      );
+      return;
+    }
+    setItems((current) =>
+      current.map((item) => (item.id === id ? data : item)),
+    );
+  }
+
+  return (
+    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <AiCourseSubnav current="/ai-course/mock-exam" />
+      <header className="shrink-0">
+        <div className="flex items-center gap-2 px-4 py-[14px]">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="lg:hidden"
+            aria-label="Open navigation"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <MenuIcon aria-hidden className="size-3.5" />
+          </Button>
+          <h1 className="truncate">AI in Marketing Level 4</h1>
+          {newCount > 0 && (
+            <span className="caption-style bg-muted shrink-0 rounded-full border border-[#363636] px-2 py-[3px]">
+              {newCount} new
+            </span>
+          )}
+        </div>
+        <div className="border-border flex flex-col gap-2 border-b px-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <label className="relative block w-full sm:max-w-[20em]">
+            <span className="sr-only">Search opt-ins</span>
+            <SearchIcon
+              aria-hidden
+              className="text-subtle pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2"
+            />
+            <Input
+              type="search"
+              placeholder="Search name, email, exam, notes…"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="pl-8"
+            />
+          </label>
+          <span className="caption-style text-subtle">
+            {items.length} mock exam{" "}
+            {items.length === 1 ? "candidate" : "candidates"} opted in
+          </span>
+        </div>
+      </header>
+
+      {error && (
+        <p
+          role="alert"
+          className="caption-style text-danger border-border shrink-0 border-b px-4 py-2"
+        >
+          {error}
+        </p>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-auto">
+        {items.length === 0 ? (
+          <div className="flex h-full items-center justify-center px-4 py-16">
+            <div className="flex max-w-[30em] flex-col gap-2 text-center">
+              <p className="lead-style font-medium">No opt-ins yet</p>
+              <p className="text-soft">
+                Mock exam candidates who tick &ldquo;wants to hear about the AI
+                in Marketing course&rdquo; appear here. Past opt-ins come across
+                when you press Import to CRM on the website&apos;s Enquiries
+                dashboard.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div role="table" className="min-w-max text-[13px]">
+            <div
+              role="row"
+              className={`bg-background border-border sticky top-0 z-10 grid ${columns} border-b`}
+            >
+              {[
+                "Name",
+                "Email",
+                "Exam",
+                "Score",
+                "Opted in",
+                "Status",
+                "Notes",
+              ].map((label) => (
+                <span
+                  key={label}
+                  role="columnheader"
+                  className="caption-style text-subtle truncate px-2.5 py-2.5 first:pl-4"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            {visible.map((item) => (
+              <div
+                key={item.id}
+                role="row"
+                className={`border-border grid ${columns} items-center border-b hover:bg-white/[0.02]`}
+              >
+                <span
+                  role="cell"
+                  className="truncate py-2.5 pr-2.5 pl-4 font-medium"
+                >
+                  {item.name ?? "—"}
+                </span>
+                <span role="cell" className="truncate px-2.5">
+                  <a
+                    href={`mailto:${item.email}`}
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {item.email}
+                  </a>
+                </span>
+                <span role="cell" className="text-soft truncate px-2.5">
+                  {item.exam ?? "—"}
+                </span>
+                <span role="cell" className="px-2.5 tabular-nums">
+                  {item.score_pct !== null ? `${item.score_pct}%` : "—"}
+                </span>
+                <span role="cell" className="px-2.5">
+                  {formatDate(item.submitted_at)}
+                </span>
+                <span role="cell" className="self-stretch">
+                  <PillCell
+                    label="Status"
+                    value={item.status}
+                    options={STATUSES}
+                    allowEmpty={false}
+                    onCommit={(status) => status && save(item.id, { status })}
+                  />
+                </span>
+                <span role="cell">
+                  <TextCell
+                    label="Notes"
+                    value={item.notes}
+                    onCommit={(notes) => save(item.id, { notes })}
+                  />
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
