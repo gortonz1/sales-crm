@@ -36,7 +36,7 @@ export default function LoginForm() {
         setPending(false);
         return;
       }
-      router.replace("/leads");
+      router.replace("/");
       router.refresh();
       return;
     }
@@ -48,7 +48,7 @@ export default function LoginForm() {
       return;
     }
     if (data.session) {
-      router.replace("/leads");
+      router.replace("/");
       router.refresh();
       return;
     }

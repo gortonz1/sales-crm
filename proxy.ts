@@ -44,7 +44,7 @@ export async function proxy(request: NextRequest) {
 
   if (signedIn && pathname === "/login") {
     const url = request.nextUrl.clone();
-    url.pathname = "/leads";
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 
