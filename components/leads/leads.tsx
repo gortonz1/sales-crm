@@ -2,7 +2,9 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import Button from "@/components/_ui/button";
+import { Checkbox } from "@/components/_ui/checkbox";
 import { Input } from "@/components/_ui/input";
+import { Label } from "@/components/_ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/_ui/tabs";
 import LeadsTable from "./leads-table";
 import LeadsBoard from "./leads-board";
@@ -78,6 +80,7 @@ export default function Leads({
   const [filter, setFilter] = useState(defaultFilter);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<View>("list");
+  const [showDead, setShowDead] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +113,13 @@ export default function Leads({
       : filter === GENUINE
         ? stages.filter((stage) => PIPELINE_STAGE_IDS.includes(stage.id))
         : stages.filter((stage) => stage.id === filter);
+  const boardStageIds = new Set(boardStages.map((stage) => stage.id));
+  const deadCount = searched.filter(
+    (lead) => !lead.active && boardStageIds.has(lead.stage),
+  ).length;
+  const boardLeads = showDead
+    ? searched
+    : searched.filter((lead) => lead.active);
 
   async function updateLead(id: string, patch: LeadPatch) {
     const previous = leads.find((lead) => lead.id === id);
@@ -287,10 +297,25 @@ export default function Leads({
                 className="pl-8"
               />
             </label>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
               <span className="caption-style text-subtle">
                 {leads.length} {leads.length === 1 ? "enquiry" : "enquiries"}
               </span>
+              {view === "board" && (
+                <div className="flex shrink-0 items-center gap-2">
+                  <Checkbox
+                    id="show-dead-leads"
+                    checked={showDead}
+                    onCheckedChange={(checked) => setShowDead(checked === true)}
+                  />
+                  <Label
+                    htmlFor="show-dead-leads"
+                    className="cursor-pointer whitespace-nowrap"
+                  >
+                    Show dead leads ({deadCount})
+                  </Label>
+                </div>
+              )}
               <div className="flex shrink-0 items-center gap-1 rounded-full">
                 {VIEWS.map((option) => (
                   <Button
@@ -350,7 +375,7 @@ export default function Leads({
             />
           ) : view === "board" ? (
             <LeadsBoard
-              leads={searched}
+              leads={boardLeads}
               stages={boardStages}
               onOpen={setSelectedId}
               onMove={(id, stage) => updateLead(id, { stage })}
