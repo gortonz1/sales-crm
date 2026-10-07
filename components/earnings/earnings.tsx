@@ -1,19 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useEffect,
+  useState,
+  useTransition,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import { useRouter } from "next/navigation";
+import { lockEarnings, saveEarnings } from "@/app/(app)/earnings/actions";
 import Button from "@/components/_ui/button";
-import { buildReport, type Report } from "@/lib/earnings";
-import { useCompaniesStore } from "@/stores/companies-store";
+import {
+  buildReport,
+  carryPlan,
+  defaultPlan,
+  type Plan,
+  type Report,
+  type SavedWorkspace,
+} from "@/lib/earnings";
+import { cn } from "@/lib/utils";
 import EarningsDashboard from "./earnings-dashboard";
+import EarningsShell from "./shell";
 import Upload from "./upload";
-import MenuIcon from "@/public/assets/images/_common/menu.svg";
 
-export default function Earnings() {
-  const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
-  const [report, setReport] = useState<Report | null>(null);
+const savedTime = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/London",
+});
+
+export default function Earnings({ saved }: { saved: SavedWorkspace | null }) {
+  const router = useRouter();
+  const [report, setReport] = useState<Report | null>(saved?.report ?? null);
+  const [plan, setPlan] = useState<Plan | null>(saved?.plan ?? null);
+  const [savedReport, setSavedReport] = useState<Report | null>(
+    saved?.report ?? null,
+  );
+  const [savedPlan, setSavedPlan] = useState(() =>
+    saved ? JSON.stringify(saved.plan) : null,
+  );
+  const [savedAt, setSavedAt] = useState(saved?.savedAt ?? null);
+  const [savedBy, setSavedBy] = useState(saved?.savedBy ?? null);
+  const [replacing, setReplacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [masked, setMasked] = useState(false);
+  const [saving, startSaving] = useTransition();
+  const [locking, startLocking] = useTransition();
+
+  const updatePlan: Dispatch<SetStateAction<Plan>> = (update) => {
+    setSaveError(null);
+    setPlan((current) =>
+      current === null
+        ? current
+        : typeof update === "function"
+          ? update(current)
+          : update,
+    );
+  };
+
+  const dirty =
+    report !== null &&
+    plan !== null &&
+    (report !== savedReport || JSON.stringify(plan) !== savedPlan);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
 
   function load(file: File) {
     setBusy(true);
@@ -25,9 +84,17 @@ export default function Earnings() {
     };
     reader.onload = () => {
       try {
-        setReport(
-          buildReport(String(reader.result), file.name, file.lastModified),
+        const next = buildReport(
+          String(reader.result),
+          file.name,
+          file.lastModified,
         );
+        setSaveError(null);
+        setReport(next);
+        setPlan((current) =>
+          current ? carryPlan(current, next) : defaultPlan(next),
+        );
+        setReplacing(false);
       } catch (caught) {
         setError(
           caught instanceof Error && caught.message
@@ -41,58 +108,128 @@ export default function Earnings() {
     reader.readAsText(file);
   }
 
+  function save() {
+    if (!report || !plan) return;
+    setSaveError(null);
+    startSaving(async () => {
+      const result = await saveEarnings(report, plan);
+      if (result.error || !result.savedAt) {
+        setSaveError(result.error ?? "Couldn't save. Try again.");
+        return;
+      }
+      setSavedReport(report);
+      setSavedPlan(JSON.stringify(plan));
+      setSavedAt(result.savedAt);
+      setSavedBy(result.savedBy ?? null);
+    });
+  }
+
+  function lock() {
+    if (
+      dirty &&
+      !window.confirm("Lock the dashboard? Unsaved changes will be lost.")
+    ) {
+      return;
+    }
+    startLocking(async () => {
+      await lockEarnings();
+      router.refresh();
+    });
+  }
+
+  const showDashboard = report && plan && !replacing;
+  const status = saveError
+    ? saveError
+    : dirty
+      ? "Unsaved changes"
+      : savedAt
+        ? `Saved ${savedTime.format(new Date(savedAt))}${savedBy ? ` by ${savedBy}` : ""}`
+        : "Not saved yet";
+
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className="border-border flex shrink-0 items-center justify-between gap-2 border-b px-4 py-[14px]">
-        <div className="flex min-w-0 items-center gap-2">
+    <EarningsShell
+      badge={report?.year}
+      actions={
+        showDashboard && (
           <Button
-            variant="secondary"
-            size="icon"
-            className="lg:hidden"
-            aria-label="Open navigation"
-            onClick={() => setSidebarOpen(true)}
+            variant={dirty ? "primary" : "secondary"}
+            size="sm"
+            onClick={save}
+            disabled={saving || !dirty}
           >
-            <MenuIcon aria-hidden className="size-3.5" />
+            {saving ? "Saving…" : dirty ? "Save" : "Saved"}
           </Button>
-          <h1 className="truncate">Earnings</h1>
-          {report && (
-            <span className="caption-style bg-muted border-pill hidden shrink-0 rounded-full border px-2 py-[3px] sm:inline">
-              {report.year}
-            </span>
-          )}
-        </div>
-        {report && (
-          <div className="flex shrink-0 items-center gap-2">
-            <Button
-              variant={masked ? "muted" : "ghost"}
-              size="sm"
-              aria-pressed={masked}
-              onClick={() => setMasked((value) => !value)}
-            >
-              {masked ? "Names hidden" : "Hide names"}
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                setReport(null);
-                setError(null);
-              }}
-            >
-              <span className="sm:hidden">New report</span>
-              <span className="hidden sm:inline">Load another report</span>
+        )
+      }
+      toolbar={
+        <>
+          <span
+            role="status"
+            className={cn(
+              "caption-style min-w-0 truncate",
+              saveError
+                ? "text-(--tag-red-text)"
+                : dirty
+                  ? "text-(--tag-amber-text)"
+                  : "text-subtle",
+            )}
+          >
+            {showDashboard ? status : "Upload a report to start"}
+          </span>
+          <div className="flex items-center gap-2">
+            {showDashboard && (
+              <>
+                <Button
+                  variant={masked ? "muted" : "ghost"}
+                  size="sm"
+                  aria-pressed={masked}
+                  onClick={() => setMasked((value) => !value)}
+                >
+                  {masked ? "Names hidden" : "Hide names"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setReplacing(true);
+                    setError(null);
+                  }}
+                >
+                  <span className="sm:hidden">New report</span>
+                  <span className="hidden sm:inline">Load another report</span>
+                </Button>
+              </>
+            )}
+            <Button variant="ghost" size="sm" onClick={lock} disabled={locking}>
+              Lock
             </Button>
           </div>
-        )}
-      </header>
-
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-        {report ? (
-          <EarningsDashboard report={report} masked={masked} />
-        ) : (
-          <Upload onLoad={load} error={error} busy={busy} />
-        )}
-      </div>
-    </section>
+        </>
+      }
+    >
+      {showDashboard ? (
+        <EarningsDashboard
+          report={report}
+          plan={plan}
+          setPlan={updatePlan}
+          masked={masked}
+        />
+      ) : (
+        <Upload
+          onLoad={load}
+          error={error}
+          busy={busy}
+          onCancel={
+            report
+              ? () => {
+                  setReplacing(false);
+                  setError(null);
+                }
+              : undefined
+          }
+          keepsPlan={plan !== null}
+        />
+      )}
+    </EarningsShell>
   );
 }

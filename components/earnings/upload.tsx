@@ -8,10 +8,14 @@ export default function Upload({
   onLoad,
   error,
   busy,
+  onCancel,
+  keepsPlan,
 }: {
   onLoad: (file: File) => void;
   error: string | null;
   busy: boolean;
+  onCancel?: () => void;
+  keepsPlan: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -30,9 +34,9 @@ export default function Upload({
         </h2>
         <p className="text-soft leading-[1.5]">
           Upload the Apps Indicative Earnings Report CSV exactly as it
-          downloads. The file is read in this browser tab and held in memory
-          only — nothing is uploaded, stored or saved anywhere, and leaving this
-          page clears it.
+          downloads. The file is read in this browser tab and is never uploaded.
+          When you press Save, only the figures the dashboard uses and your
+          what-ifs are stored in the CRM, behind the earnings password.
         </p>
       </div>
 
@@ -86,11 +90,20 @@ export default function Upload({
       )}
 
       <p className="caption-style text-subtle leading-[1.5]">
-        Once it loads you can plan new starts month by month, schedule EPAs for
-        apprentices reaching gateway, and click any apprentice&apos;s cell to
-        model an early finish. All three are what-ifs held in the page — the
-        report itself is never changed.
+        {keepsPlan
+          ? "Your planned starts and EPA lag carry over to the new report if it covers the same funding year, along with early finishes and EPAs for apprentices still on it. Nothing replaces the saved version until you press Save."
+          : "Once it loads you can plan new starts month by month, schedule EPAs for apprentices reaching gateway, and click any apprentice’s cell to model an early finish. Press Save to keep them for next time."}
       </p>
+      {onCancel && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start"
+          onClick={onCancel}
+        >
+          Back to the current report
+        </Button>
+      )}
     </div>
   );
 }

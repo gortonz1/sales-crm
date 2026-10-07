@@ -495,3 +495,90 @@ export const programmeMonthsInYear = (programme: Programme) =>
         Math.max(0, Math.min(12 - start, programme.months)),
     0,
   );
+
+export type Plan = {
+  year: string;
+  programmes: Programme[];
+  early: Record<string, number>;
+  epa: Record<string, number>;
+  lag: number;
+};
+
+export type SavedWorkspace = {
+  report: Report;
+  plan: Plan;
+  savedAt: string;
+  savedBy: string | null;
+};
+
+export const defaultPlan = (report: Report): Plan => ({
+  year: report.year,
+  programmes: [
+    {
+      id: "p1",
+      name: report.standardShort,
+      monthly: Math.round(
+        (report.typicalPrice * (1 - COMPLETION_SHARE)) / report.typicalMonths,
+      ),
+      months: report.typicalMonths,
+      starts: zeros(),
+    },
+    {
+      id: "p2",
+      name: "AI in Marketing",
+      monthly: 950,
+      months: 12,
+      starts: zeros(),
+    },
+  ],
+  early: {},
+  epa: {},
+  lag: 2,
+});
+
+export function carryPlan(plan: Plan, report: Report): Plan {
+  if (plan.year !== report.year) return defaultPlan(report);
+  const rows = new Map(report.rows.map((row) => [row.ref, row]));
+  const keep = (
+    record: Record<string, number>,
+    allowed: (row: Apprentice, month: number) => boolean,
+  ) =>
+    Object.fromEntries(
+      Object.entries(record).filter(([ref, month]) => {
+        const row = rows.get(ref);
+        return row != null && allowed(row, month);
+      }),
+    );
+  return {
+    ...plan,
+    early: keep(plan.early, () => true),
+    epa: keep(
+      plan.epa,
+      (row, month) =>
+        row.gateway && row.offMonth != null && month >= row.offMonth,
+    ),
+  };
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+export function readWorkspace(value: unknown): SavedWorkspace | null {
+  if (!isRecord(value)) return null;
+  const { report, plan, saved_at, saved_by } = value;
+  if (
+    !isRecord(report) ||
+    !Array.isArray(report.rows) ||
+    typeof report.year !== "string" ||
+    !isRecord(plan) ||
+    !Array.isArray(plan.programmes)
+  ) {
+    return null;
+  }
+  return {
+    report: report as unknown as Report,
+    plan: plan as unknown as Plan,
+    savedAt: String(saved_at),
+    savedBy: typeof saved_by === "string" ? saved_by : null,
+  };
+}

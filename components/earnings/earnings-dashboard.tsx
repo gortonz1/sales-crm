@@ -1,15 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
-  COMPLETION_SHARE,
   MONTHS,
   applyWhatIf,
   gbp,
   sum,
   zeros,
   type Adjusted,
-  type Programme,
+  type Plan,
   type Report,
 } from "@/lib/earnings";
 import ApprenticeTable from "./apprentice-table";
@@ -30,34 +29,32 @@ function toggleIn(record: Record<string, number>, ref: string, month: number) {
 
 export default function EarningsDashboard({
   report,
+  plan,
+  setPlan,
   masked,
 }: {
   report: Report;
+  plan: Plan;
+  setPlan: Dispatch<SetStateAction<Plan>>;
   masked: boolean;
 }) {
   const rows = report.rows;
   const [selected, setSelected] = useState<number | null>(null);
-  const [early, setEarly] = useState<Record<string, number>>({});
-  const [epa, setEpa] = useState<Record<string, number>>({});
-  const [lag, setLag] = useState(2);
-  const [programmes, setProgrammes] = useState<Programme[]>(() => [
-    {
-      id: "p1",
-      name: report.standardShort,
-      monthly: Math.round(
-        (report.typicalPrice * (1 - COMPLETION_SHARE)) / report.typicalMonths,
-      ),
-      months: report.typicalMonths,
-      starts: zeros(),
-    },
-    {
-      id: "p2",
-      name: "AI in Marketing",
-      monthly: 950,
-      months: 12,
-      starts: zeros(),
-    },
-  ]);
+  const { early, epa, lag, programmes } = plan;
+  const setter =
+    <K extends keyof Plan>(key: K) =>
+    (update: SetStateAction<Plan[K]>) =>
+      setPlan((current) => ({
+        ...current,
+        [key]:
+          typeof update === "function"
+            ? (update as (value: Plan[K]) => Plan[K])(current[key])
+            : update,
+      }));
+  const setEarly = setter("early");
+  const setEpa = setter("epa");
+  const setLag = setter("lag");
+  const setProgrammes = setter("programmes");
 
   const adjusted = useMemo<Adjusted[]>(
     () =>
@@ -80,7 +77,7 @@ export default function EarningsDashboard({
     [adjusted],
   );
 
-  const plan = useMemo(() => {
+  const intake = useMemo(() => {
     const income = zeros();
     const heads = zeros();
     for (const programme of programmes) {
@@ -106,10 +103,10 @@ export default function EarningsDashboard({
         onp,
         comp,
         inc,
-        plan: plan.income[i],
+        plan: intake.income[i],
         learners:
-          adjusted.filter((row) => row.instM[i] > 0).length + plan.heads[i],
-        total: onp + comp + inc + plan.income[i],
+          adjusted.filter((row) => row.instM[i] > 0).length + intake.heads[i],
+        total: onp + comp + inc + intake.income[i],
       };
     });
     const active = adjusted.filter((row) => row.active);
@@ -138,9 +135,9 @@ export default function EarningsDashboard({
       maxCell: Math.max(1, ...adjusted.map((row) => row.baseMax)),
       lumpCount: adjusted.filter((row) => sum(row.lumpM) > 0).length,
     };
-  }, [adjusted, plan]);
+  }, [adjusted, intake]);
 
-  const planTotal = sum(plan.income);
+  const planTotal = sum(intake.income);
   const planHeads = programmes.reduce((acc, p) => acc + sum(p.starts), 0);
   const grand = k.provider + planTotal;
 
@@ -174,7 +171,7 @@ export default function EarningsDashboard({
     },
     {
       label: "Funded in August",
-      value: `${k.monthly[0].learners} of ${adjusted.length + plan.heads[0]}`,
+      value: `${k.monthly[0].learners} of ${adjusted.length + intake.heads[0]}`,
       detail: `${gateway.filter((row) => row.offProgramme).length} already at gateway`,
     },
     {

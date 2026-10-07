@@ -313,6 +313,13 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
+      earnings_load: { Args: { session: string }; Returns: Json }
+      earnings_lock: { Args: { session: string }; Returns: undefined }
+      earnings_save: {
+        Args: { plan: Json; report: Json; session: string }
+        Returns: string
+      }
+      earnings_unlock: { Args: { attempt: string }; Returns: string }
       reorder_board_columns: {
         Args: { board_name: string; ids: string[] }
         Returns: undefined

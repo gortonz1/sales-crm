@@ -214,9 +214,9 @@ export default function ApprenticeTable({
       </div>
       <p className="caption-style text-subtle leading-[1.4]">
         Indicative earnings only — actual payment depends on the ILR submitted
-        at each return and on employer account funds. Early finishes and planned
-        starts are what-ifs held in this page. Read from {fileName} in this
-        browser tab; nothing was stored. Use Hide names before sharing a screen.
+        at each return and on employer account funds. Early finishes, EPAs and
+        planned starts are what-ifs; the report itself is never changed. Read
+        from {fileName}. Use Hide names before sharing a screen.
       </p>
     </Panel>
   );
