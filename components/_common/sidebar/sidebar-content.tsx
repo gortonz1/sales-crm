@@ -17,6 +17,7 @@ import UsersIcon from "@/public/assets/images/companies/sidebar/users.svg";
 import TargetIcon from "@/public/assets/images/companies/sidebar/target-05.svg";
 import ChartIcon from "@/public/assets/images/companies/sidebar/bar-chart.svg";
 import ClipboardIcon from "@/public/assets/images/companies/sidebar/clipboard.svg";
+import WalletIcon from "@/public/assets/images/companies/sidebar/wallet.svg";
 
 export default function SidebarContent({ email }: { email: string | null }) {
   const pathname = usePathname();
@@ -75,6 +76,13 @@ export default function SidebarContent({ email }: { email: string | null }) {
               href="/recruitment"
               onClick={closeSidebar}
               active={pathname.startsWith("/recruitment")}
+            />
+            <SidebarNavItem
+              icon={WalletIcon}
+              label="Earnings"
+              href="/earnings"
+              onClick={closeSidebar}
+              active={pathname.startsWith("/earnings")}
             />
           </SidebarSection>
 
