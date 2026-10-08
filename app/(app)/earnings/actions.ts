@@ -1,12 +1,14 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { clearCostsCache } from "@/lib/costs";
 import type { Plan, Report } from "@/lib/earnings";
 import {
   EARNINGS_COOKIE,
   EARNINGS_SESSION_SECONDS,
   earningsSession,
 } from "@/lib/earnings-session";
+import { disconnectSage } from "@/lib/sage-connection";
 import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -76,6 +78,21 @@ export async function saveEarnings(
     savedAt: data,
     savedBy: (claims?.claims?.email as string | undefined) ?? null,
   };
+}
+
+export async function refreshCosts() {
+  if (!(await earningsSession())) return;
+  clearCostsCache();
+}
+
+export async function disconnectSageAccount(): Promise<{ error?: string }> {
+  const session = await earningsSession();
+  if (!session) return { error: "The earnings dashboard is locked." };
+  if (!(await disconnectSage(session))) {
+    return { error: "Couldn't disconnect Sage. Try again." };
+  }
+  clearCostsCache();
+  return {};
 }
 
 export async function lockEarnings() {
