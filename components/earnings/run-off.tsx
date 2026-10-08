@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import Button from "@/components/_ui/button";
 import {
   DEFAULT_COMPLETION,
@@ -31,6 +31,80 @@ export function StripMonths({ last }: { last: string }) {
   );
 }
 
+type Hover = { row: Adjusted; month: number; value: number };
+
+const StripRows = memo(function StripRows({
+  strip,
+  maxCell,
+  masked,
+  onToggle,
+  onHover,
+}: {
+  strip: Adjusted[];
+  maxCell: number;
+  masked: boolean;
+  onToggle: (ref: string, month: number) => void;
+  onHover: (hover: Hover | null) => void;
+}) {
+  return (
+    <ul
+      className="flex max-h-[30em] flex-col gap-0.5 overflow-y-auto py-0.5 pr-1"
+      onMouseLeave={() => onHover(null)}
+    >
+      {strip.map((row) => (
+        <li key={row.ref} className={stripGrid}>
+          <span className="caption-style truncate">
+            {apprenticeName(row, masked)}
+            {row.gateway && row.offProgramme && (
+              <span className="text-subtle"> · gateway</span>
+            )}
+          </span>
+          <div className="grid grid-cols-12 gap-0.5">
+            {row.provM.map((value, i) => {
+              const finishing = row.fin === i;
+              const color =
+                row.lumpM[i] > 0 ? seriesColor("comp") : seriesColor("onp");
+              const strength = Math.round(
+                Math.min(1, 0.35 + 0.65 * (value / maxCell)) * 100,
+              );
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => onToggle(row.ref, i)}
+                  onMouseEnter={() => onHover({ row, month: i, value })}
+                  onFocus={() => onHover({ row, month: i, value })}
+                  aria-label={`${apprenticeName(row, masked)}, ${MONTHS[i]}, ${gbp(value)}${finishing ? ", finishing this month" : ""}`}
+                  aria-pressed={finishing}
+                  className={cn(
+                    "hover:ring-foreground/70 focus-visible:ring-ring h-3 cursor-pointer rounded-[2px] outline-none hover:ring-2 focus-visible:ring-2",
+                    finishing ? "bg-foreground" : value > 0 ? "" : "bg-muted",
+                  )}
+                  style={
+                    value > 0 && !finishing
+                      ? {
+                          backgroundColor: `color-mix(in srgb, ${color} ${strength}%, transparent)`,
+                        }
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </div>
+          <span
+            className={cn(
+              "caption-style text-right font-medium tabular-nums",
+              row.fin == null && "text-soft",
+            )}
+          >
+            {gbp(row.total)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+});
+
 export default function RunOff({
   strip,
   maxCell,
@@ -52,91 +126,48 @@ export default function RunOff({
   onToggle: (ref: string, month: number) => void;
   onClear: () => void;
 }) {
-  const [hover, setHover] = useState<{
-    row: Adjusted;
-    month: number;
-    value: number;
-  } | null>(null);
+  const [hover, setHover] = useState<Hover | null>(null);
 
   return (
     <Panel
       title="Cohort run-off"
       description={`Click the month an apprentice finishes and everything left on their price is paid then. Click it again to undo. Apprentices with no price on this report pay a flat ${gbp(DEFAULT_COMPLETION)}.`}
       actions={
-        <>
-          <span className="caption-style text-subtle hidden min-h-4 text-right md:block">
-            {hover
-              ? `${apprenticeName(hover.row, masked)} — ${MONTHS[hover.month]}: ${gbp(hover.value, 2)}`
-              : "Hover a cell for the amount"}
-          </span>
-          {finishes > 0 && (
-            <Button variant="secondary" size="sm" onClick={onClear}>
-              Clear finishes
-            </Button>
-          )}
-        </>
+        finishes > 0 && (
+          <Button variant="secondary" size="sm" onClick={onClear}>
+            Clear finishes
+          </Button>
+        )
       }
     >
+      <p
+        aria-live="polite"
+        className="caption-style text-subtle h-3 truncate tabular-nums"
+      >
+        {hover ? (
+          <>
+            <span className="text-foreground font-medium">
+              {apprenticeName(hover.row, masked)}
+            </span>{" "}
+            · {MONTHS[hover.month]} · {gbp(hover.value, 2)}
+            {hover.row.fin === hover.month
+              ? " · finishes here"
+              : " · click to finish here"}
+          </>
+        ) : (
+          "Hover a cell for the amount"
+        )}
+      </p>
       <div className="-mx-4 overflow-x-auto px-4">
         <div className="flex min-w-[36em] flex-col gap-1">
           <StripMonths last="Year" />
-          <ul className="flex max-h-[30em] flex-col gap-0.5 overflow-y-auto pr-1">
-            {strip.map((row) => (
-              <li key={row.ref} className={stripGrid}>
-                <span className="caption-style truncate">
-                  {apprenticeName(row, masked)}
-                  {row.gateway && row.offProgramme && (
-                    <span className="text-subtle"> · gateway</span>
-                  )}
-                </span>
-                <div className="grid grid-cols-12 gap-0.5">
-                  {row.provM.map((value, i) => {
-                    const finishing = row.fin === i;
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => onToggle(row.ref, i)}
-                        onMouseEnter={() => setHover({ row, month: i, value })}
-                        onMouseLeave={() => setHover(null)}
-                        title={`${MONTHS[i]}: ${gbp(value, 2)}${finishing ? " — finishes here" : " — click to finish here"}`}
-                        aria-label={`${apprenticeName(row, masked)}, ${MONTHS[i]}, ${gbp(value)}${finishing ? ", finishing this month" : ""}`}
-                        aria-pressed={finishing}
-                        className={cn(
-                          "ease-power3-out focus-visible:ring-ring h-3 cursor-pointer rounded-[2px] transition-transform duration-150 outline-none hover:scale-y-[1.8] focus-visible:ring-2 motion-reduce:transition-none motion-reduce:hover:scale-y-100",
-                          value > 0 ? "" : "bg-muted",
-                          finishing &&
-                            "bg-foreground outline-foreground outline-[1.5px] outline-offset-1 outline-solid",
-                        )}
-                        style={
-                          value > 0 && !finishing
-                            ? {
-                                backgroundColor:
-                                  row.lumpM[i] > 0
-                                    ? seriesColor("comp")
-                                    : seriesColor("onp"),
-                                opacity: Math.min(
-                                  1,
-                                  0.35 + 0.65 * (value / maxCell),
-                                ),
-                              }
-                            : undefined
-                        }
-                      />
-                    );
-                  })}
-                </div>
-                <span
-                  className={cn(
-                    "caption-style text-right font-medium tabular-nums",
-                    row.fin == null && "text-soft",
-                  )}
-                >
-                  {gbp(row.total)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <StripRows
+            strip={strip}
+            maxCell={maxCell}
+            masked={masked}
+            onToggle={onToggle}
+            onHover={setHover}
+          />
         </div>
       </div>
 
