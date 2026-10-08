@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useEffect,
   useState,
   useTransition,
@@ -18,7 +19,9 @@ import {
   type Report,
   type SavedWorkspace,
 } from "@/lib/earnings";
+import type { CostStats } from "@/lib/costs";
 import { cn } from "@/lib/utils";
+import Costs, { CostsLoading, type CostsFlash } from "./costs";
 import EarningsDashboard from "./earnings-dashboard";
 import EarningsShell from "./shell";
 import Upload from "./upload";
@@ -31,7 +34,15 @@ const savedTime = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
 });
 
-export default function Earnings({ saved }: { saved: SavedWorkspace | null }) {
+export default function Earnings({
+  saved,
+  costs,
+  costsFlash,
+}: {
+  saved: SavedWorkspace | null;
+  costs: Promise<CostStats>;
+  costsFlash: CostsFlash;
+}) {
   const router = useRouter();
   const [report, setReport] = useState<Report | null>(saved?.report ?? null);
   const [plan, setPlan] = useState<Plan | null>(saved?.plan ?? null);
@@ -213,6 +224,7 @@ export default function Earnings({ saved }: { saved: SavedWorkspace | null }) {
           plan={plan}
           setPlan={updatePlan}
           masked={masked}
+          costs={costs}
         />
       ) : (
         <Upload
@@ -230,6 +242,11 @@ export default function Earnings({ saved }: { saved: SavedWorkspace | null }) {
           keepsPlan={plan !== null}
         />
       )}
+      <div className="border-line-strong mt-6 border-t pt-6">
+        <Suspense fallback={<CostsLoading />}>
+          <Costs stats={costs} flash={costsFlash} />
+        </Suspense>
+      </div>
     </EarningsShell>
   );
 }

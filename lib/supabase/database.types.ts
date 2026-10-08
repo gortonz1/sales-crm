@@ -320,6 +320,26 @@ export type Database = {
         Returns: string
       }
       earnings_unlock: { Args: { attempt: string }; Returns: string }
+      sage_connect: {
+        Args: {
+          business_id: string | null
+          business_name: string | null
+          refresh_expires_at: string | null
+          session: string
+          tokens: string
+        }
+        Returns: undefined
+      }
+      sage_disconnect: { Args: { session: string }; Returns: undefined }
+      sage_load: { Args: { session: string }; Returns: Json }
+      sage_rotate: {
+        Args: {
+          refresh_expires_at: string | null
+          session: string
+          tokens: string
+        }
+        Returns: undefined
+      }
       reorder_board_columns: {
         Args: { board_name: string; ids: string[] }
         Returns: undefined

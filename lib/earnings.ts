@@ -1,3 +1,5 @@
+import type { CostPlan } from "@/lib/cost-forecast";
+
 export const MONTHS = [
   "August",
   "September",
@@ -502,6 +504,7 @@ export type Plan = {
   early: Record<string, number>;
   epa: Record<string, number>;
   lag: number;
+  costs?: CostPlan;
 };
 
 export type SavedWorkspace = {
@@ -537,7 +540,11 @@ export const defaultPlan = (report: Report): Plan => ({
 });
 
 export function carryPlan(plan: Plan, report: Report): Plan {
-  if (plan.year !== report.year) return defaultPlan(report);
+  if (plan.year !== report.year) {
+    return plan.costs
+      ? { ...defaultPlan(report), costs: plan.costs }
+      : defaultPlan(report);
+  }
   const rows = new Map(report.rows.map((row) => [row.ref, row]));
   const keep = (
     record: Record<string, number>,

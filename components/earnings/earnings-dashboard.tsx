@@ -1,6 +1,14 @@
 "use client";
 
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  Suspense,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import { readCostPlan, type CostPlan } from "@/lib/cost-forecast";
+import type { CostStats } from "@/lib/costs";
 import {
   MONTHS,
   applyWhatIf,
@@ -13,6 +21,7 @@ import {
 } from "@/lib/earnings";
 import ApprenticeTable from "./apprentice-table";
 import EarningsChart, { type MonthTotals } from "./earnings-chart";
+import ForecastPnl from "./forecast-pnl";
 import Gateway from "./gateway";
 import MonthBreakdown from "./month-breakdown";
 import MonthlyTotals from "./monthly-totals";
@@ -32,11 +41,13 @@ export default function EarningsDashboard({
   plan,
   setPlan,
   masked,
+  costs,
 }: {
   report: Report;
   plan: Plan;
   setPlan: Dispatch<SetStateAction<Plan>>;
   masked: boolean;
+  costs: Promise<CostStats>;
 }) {
   const rows = report.rows;
   const [selected, setSelected] = useState<number | null>(null);
@@ -55,6 +66,15 @@ export default function EarningsDashboard({
   const setEpa = setter("epa");
   const setLag = setter("lag");
   const setProgrammes = setter("programmes");
+  const costPlan = useMemo(() => readCostPlan(plan.costs), [plan.costs]);
+  const setCostPlan: Dispatch<SetStateAction<CostPlan>> = (update) =>
+    setPlan((current) => ({
+      ...current,
+      costs:
+        typeof update === "function"
+          ? update(readCostPlan(current.costs))
+          : update,
+    }));
 
   const adjusted = useMemo<Adjusted[]>(
     () =>
@@ -239,6 +259,16 @@ export default function EarningsDashboard({
           onClose={() => setSelected(null)}
         />
       )}
+
+      <Suspense fallback={null}>
+        <ForecastPnl
+          costs={costs}
+          income={k.monthly.map((month) => month.total)}
+          year={report.year}
+          plan={costPlan}
+          setPlan={setCostPlan}
+        />
+      </Suspense>
 
       <Planner
         programmes={programmes}
