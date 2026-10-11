@@ -14,6 +14,8 @@ export type Database = {
     Tables: {
       board_columns: {
         Row: {
+          deleted_at: string | null
+          deleted_by: string | null
           board: string
           board_id: string | null
           created_at: string
@@ -37,6 +39,7 @@ export type Database = {
           width?: number
         }
         Update: {
+          deleted_at?: string | null
           hidden?: boolean
           label?: string
           options?: Json
@@ -48,6 +51,8 @@ export type Database = {
       }
       board_groups: {
         Row: {
+          deleted_at: string | null
+          deleted_by: string | null
           board_id: string
           color: string
           created_at: string
@@ -64,6 +69,7 @@ export type Database = {
           position?: number
         }
         Update: {
+          deleted_at?: string | null
           color?: string
           name?: string
           position?: number
@@ -80,6 +86,8 @@ export type Database = {
       }
       board_items: {
         Row: {
+          deleted_at: string | null
+          deleted_by: string | null
           board_id: string
           created_at: string
           created_by: string | null
@@ -100,6 +108,7 @@ export type Database = {
           position?: number
         }
         Update: {
+          deleted_at?: string | null
           custom?: Json
           group_id?: string
           name?: string
@@ -117,6 +126,8 @@ export type Database = {
       }
       boards: {
         Row: {
+          deleted_at: string | null
+          deleted_by: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -131,6 +142,7 @@ export type Database = {
           position?: number
         }
         Update: {
+          deleted_at?: string | null
           name?: string
           position?: number
         }
@@ -406,6 +418,24 @@ export type Database = {
     Views: { [_ in never]: never }
     Functions: {
       crm_is_admin: { Args: never; Returns: boolean }
+      crm_team: {
+        Args: never
+        Returns: {
+          added_at: string
+          email: string
+          is_admin: boolean
+          is_you: boolean
+          signed_up: boolean
+        }[]
+      }
+      crm_team_add: { Args: { member_email: string }; Returns: undefined }
+      crm_team_remove: { Args: { member_email: string }; Returns: undefined }
+      crm_team_set_admin: {
+        Args: { make_admin: boolean; member_email: string }
+        Returns: undefined
+      }
+      delete_forever: { Args: { entry_id: string; kind: string }; Returns: string[] }
+      purge_bin: { Args: never; Returns: string[] }
       earnings_load: { Args: { session: string }; Returns: Json }
       earnings_lock: { Args: { session: string }; Returns: undefined }
       earnings_save: {

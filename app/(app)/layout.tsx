@@ -7,7 +7,11 @@ export default async function AppLayout({
   const supabase = await createClient();
   const [{ data }, boardsResult, adminResult] = await Promise.all([
     supabase.auth.getClaims(),
-    supabase.from("boards").select("id, name").order("position"),
+    supabase
+      .from("boards")
+      .select("id, name")
+      .is("deleted_at", null)
+      .order("position"),
     supabase.rpc("crm_is_admin"),
   ]);
   const email = (data?.claims?.email as string | undefined) ?? null;

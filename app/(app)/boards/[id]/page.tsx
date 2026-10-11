@@ -17,6 +17,7 @@ async function loadItems(supabase: Supabase, boardId: string) {
       .from("board_items")
       .select("*")
       .eq("board_id", boardId)
+      .is("deleted_at", null)
       .order("position")
       .order("id")
       .range(from, from + ITEM_PAGE - 1);
@@ -54,30 +55,39 @@ export default async function BoardPage({ params }: Props) {
     adminResult,
   ] = await Promise.all([
     supabase.from("lead_stages").select("id").limit(1),
-    supabase.from("boards").select("*").eq("id", id).maybeSingle(),
+    supabase
+      .from("boards")
+      .select("*")
+      .eq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle(),
     supabase
       .from("board_groups")
       .select("*")
       .eq("board_id", id)
+      .is("deleted_at", null)
       .order("position"),
     loadItems(supabase, id),
     supabase
       .from("board_columns")
       .select("*")
       .eq("board_id", id)
+      .is("deleted_at", null)
       .order("position"),
     supabase.rpc("crm_is_admin"),
   ]);
 
   if (!stagesResult.data?.length) return <NoAccess />;
   if (!boardResult.data) notFound();
+  const groups = groupsResult.data ?? [];
+  const groupIds = new Set(groups.map((group) => group.id));
 
   return (
     <BoardView
       key={id}
       board={boardResult.data}
-      initialGroups={groupsResult.data ?? []}
-      initialItems={itemsResult}
+      initialGroups={groups}
+      initialItems={itemsResult.filter((item) => groupIds.has(item.group_id))}
       initialColumns={columnsResult.data ?? []}
       isAdmin={adminResult.data === true}
     />

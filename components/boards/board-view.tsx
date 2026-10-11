@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/_ui/button";
 import {
@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/_ui/dropdown-menu";
 import { Input } from "@/components/_ui/input";
+import UndoToast, { type UndoNotice } from "@/components/_common/undo-toast";
 import ColumnsProvider from "@/components/sheet/columns-provider";
 import type { CustomValue } from "@/components/sheet/custom-cell";
 import {
@@ -35,21 +36,27 @@ import {
   type BoardItem,
   type CustomBoard,
 } from "@/lib/boards";
+import {
+  NAME_FIELD,
+  compareItems,
+  isRuleReady,
+  matchesRule,
+  todayKey,
+  useBoardViewSettings,
+} from "@/lib/board-view";
 import { withCustom, type BoardColumn } from "@/lib/columns";
-import { filePaths, removeFiles } from "@/lib/files";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
 import BoardGroupSection from "./board-group";
+import BoardKanban from "./board-kanban";
+import { FilterMenu, SortMenu, ViewSwitch } from "./board-toolbar";
 import NameDialog from "./name-dialog";
 import MenuIcon from "@/public/assets/images/_common/menu.svg";
 import PlusIcon from "@/public/assets/images/_common/plus.svg";
 import SearchIcon from "@/public/assets/images/_common/search.svg";
 
-type Confirm =
-  | { kind: "board" }
-  | { kind: "group"; group: BoardGroup }
-  | { kind: "item"; item: BoardItem };
+type Confirm = { kind: "board" } | { kind: "group"; group: BoardGroup };
 
 export default function BoardView({
   board,
@@ -76,17 +83,43 @@ export default function BoardView({
     { kind: "board" } | { kind: "group"; group: BoardGroup } | null
   >(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  const [undo, setUndo] = useState<UndoNotice | null>(null);
+  const closeUndo = useCallback(() => setUndo(null), []);
 
-  const visible = useMemo(
+  const [settings, updateSettings] = useBoardViewSettings(board.id);
+  const columns = columnsApi.columns;
+  const rules = useMemo(
     () =>
-      sortByPosition(items).filter((item) =>
-        matchesItemSearch(item, columnsApi.columns, query),
-      ),
-    [items, columnsApi.columns, query],
+      settings.filters.flatMap((rule) => {
+        const column = columns.find((entry) => entry.id === rule.field) ?? null;
+        if (!column && rule.field !== NAME_FIELD) return [];
+        return isRuleReady(column, rule) ? [{ rule, column }] : [];
+      }),
+    [settings.filters, columns],
   );
+  const sortColumn = settings.sort
+    ? (columns.find((entry) => entry.id === settings.sort?.field) ?? null)
+    : null;
+  const sortActive =
+    settings.sort !== null &&
+    (settings.sort.field === NAME_FIELD || sortColumn !== null);
 
-  const discardFiles = (rows: BoardItem[]) =>
-    removeFiles(filePaths(rows)).catch(() => undefined);
+  const visible = useMemo(() => {
+    const today = todayKey();
+    const matched = items.filter(
+      (item) =>
+        matchesItemSearch(item, columns, query) &&
+        rules.every(({ rule, column }) =>
+          matchesRule(item, column, rule, today),
+        ),
+    );
+    return settings.sort && sortActive
+      ? [...matched].sort((a, b) =>
+          compareItems(a, b, sortColumn, settings.sort!.direction),
+        )
+      : sortByPosition(matched);
+  }, [items, columns, query, rules, settings.sort, sortActive, sortColumn]);
+  const narrowed = query.trim() !== "" || rules.length > 0;
 
   const fail = (action: string, message?: string) =>
     setError(`Couldn't ${action}: ${message ?? "no response"}`);
@@ -149,19 +182,36 @@ export default function BoardView({
     if (error) fail(`save ${previous.name}`, error.message);
   }
 
+  const binned = () => ({ deleted_at: new Date().toISOString() });
+
   async function deleteItem(item: BoardItem) {
     setError(null);
     setItems((current) => current.filter((entry) => entry.id !== item.id));
     const { error } = await createClient()
       .from("board_items")
-      .delete()
+      .update(binned())
       .eq("id", item.id);
     if (error) {
       setItems((current) => [...current, item]);
-      fail(`delete ${item.name}`, error.message);
-      return;
+      return fail(`delete ${item.name}`, error.message);
     }
-    discardFiles([item]);
+    setUndo({
+      message: `Deleted “${item.name}”`,
+      undo: () => restoreItem(item),
+    });
+  }
+
+  async function restoreItem(item: BoardItem) {
+    setError(null);
+    setItems((current) => [...current, item]);
+    const { error } = await createClient()
+      .from("board_items")
+      .update({ deleted_at: null })
+      .eq("id", item.id);
+    if (error) {
+      setItems((current) => current.filter((entry) => entry.id !== item.id));
+      fail(`restore ${item.name}`, error.message);
+    }
   }
 
   async function addGroup() {
@@ -238,22 +288,33 @@ export default function BoardView({
   }
 
   async function deleteGroup(group: BoardGroup) {
-    const previousGroups = groups;
-    const previousItems = items;
     setError(null);
     setGroups((current) => current.filter((entry) => entry.id !== group.id));
-    setItems((current) => current.filter((item) => item.group_id !== group.id));
     const { error } = await createClient()
       .from("board_groups")
-      .delete()
+      .update(binned())
       .eq("id", group.id);
     if (error) {
-      setGroups(previousGroups);
-      setItems(previousItems);
-      fail(`delete ${group.name}`, error.message);
-      return;
+      setGroups((current) => sortByPosition([...current, group]));
+      return fail(`delete ${group.name}`, error.message);
     }
-    discardFiles(previousItems.filter((item) => item.group_id === group.id));
+    setUndo({
+      message: `Deleted “${group.name}”`,
+      undo: () => restoreGroup(group),
+    });
+  }
+
+  async function restoreGroup(group: BoardGroup) {
+    setError(null);
+    setGroups((current) => sortByPosition([...current, group]));
+    const { error } = await createClient()
+      .from("board_groups")
+      .update({ deleted_at: null })
+      .eq("id", group.id);
+    if (error) {
+      setGroups((current) => current.filter((entry) => entry.id !== group.id));
+      fail(`restore ${group.name}`, error.message);
+    }
   }
 
   async function renameBoard(next: string) {
@@ -275,19 +336,17 @@ export default function BoardView({
     setError(null);
     const { error } = await createClient()
       .from("boards")
-      .delete()
+      .update(binned())
       .eq("id", board.id);
     if (error) return fail("delete the board", error.message);
-    discardFiles(items);
-    router.replace("/");
+    router.replace("/bin");
     router.refresh();
   }
 
   function runConfirm() {
     if (!confirm) return;
     if (confirm.kind === "board") deleteBoard();
-    else if (confirm.kind === "group") deleteGroup(confirm.group);
-    else deleteItem(confirm.item);
+    else deleteGroup(confirm.group);
     setConfirm(null);
   }
 
@@ -295,20 +354,14 @@ export default function BoardView({
     ? confirm.kind === "board"
       ? {
           title: `Delete “${name}”?`,
-          body: "The board, its groups, columns and every item on it will be deleted for everyone. This can't be undone.",
+          body: "The board, its groups, columns and items move to the Bin for everyone. An admin can restore it from there for 30 days.",
           action: "Delete board",
         }
-      : confirm.kind === "group"
-        ? {
-            title: `Delete “${confirm.group.name}”?`,
-            body: `The group and its ${items.filter((item) => item.group_id === confirm.group.id).length} items will be deleted. This can't be undone.`,
-            action: "Delete group",
-          }
-        : {
-            title: `Delete “${confirm.item.name}”?`,
-            body: "The item and everything entered on it will be deleted. This can't be undone.",
-            action: "Delete item",
-          }
+      : {
+          title: `Delete “${confirm.group.name}”?`,
+          body: `The group and its ${items.filter((item) => item.group_id === confirm.group.id).length} items move to the Bin, where they can be restored for 30 days.`,
+          action: "Delete group",
+        }
     : null;
 
   return (
@@ -363,25 +416,44 @@ export default function BoardView({
             </div>
           </div>
 
-          <div className="border-border flex flex-col gap-2 border-b px-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
-            <label className="relative block w-full sm:max-w-[20em]">
-              <span className="sr-only">Search {name}</span>
-              <SearchIcon
-                aria-hidden
-                className="text-subtle pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2"
+          <div className="border-border flex flex-col gap-2 border-b px-4 pb-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <label className="relative mr-1.5 block w-full sm:w-[18em]">
+                <span className="sr-only">Search {name}</span>
+                <SearchIcon
+                  aria-hidden
+                  className="text-subtle pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2"
+                />
+                <Input
+                  type="search"
+                  placeholder="Search items…"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className="pl-8"
+                />
+              </label>
+              <FilterMenu
+                columns={columns}
+                filters={settings.filters}
+                onChange={(filters) => updateSettings({ filters })}
               />
-              <Input
-                type="search"
-                placeholder="Search items…"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                className="pl-8"
+              <SortMenu
+                columns={columns}
+                sort={sortActive ? settings.sort : null}
+                onChange={(sort) => updateSettings({ sort })}
               />
-            </label>
-            <span className="caption-style text-subtle">
-              {items.length} {items.length === 1 ? "item" : "items"} ·{" "}
-              {groups.length} {groups.length === 1 ? "group" : "groups"}
-            </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="caption-style text-subtle">
+                {narrowed
+                  ? `${visible.length} of ${items.length} items`
+                  : `${items.length} ${items.length === 1 ? "item" : "items"} · ${groups.length} ${groups.length === 1 ? "group" : "groups"}`}
+              </span>
+              <ViewSwitch
+                view={settings.view}
+                onChange={(view) => updateSettings({ view })}
+              />
+            </div>
           </div>
         </header>
 
@@ -394,42 +466,61 @@ export default function BoardView({
           </p>
         )}
 
-        <div className="min-h-0 flex-1 overflow-auto pb-10">
-          {groups.length === 0 ? (
-            <div className="flex flex-col items-start gap-3 p-4">
-              <p className="text-soft">
-                This board is empty. Add a group to start adding items.
-              </p>
-              <Button variant="secondary" size="sm" onClick={addGroup}>
-                <PlusIcon aria-hidden className="size-3" />
-                Add group
-              </Button>
-            </div>
-          ) : (
-            groups.map((group, index) => (
-              <BoardGroupSection
-                key={group.id}
-                group={group}
-                groups={groups}
-                index={index}
-                items={visible.filter((item) => item.group_id === group.id)}
-                onAddItem={(itemName) => addItem(group.id, itemName)}
-                onRenameItem={(id, itemName) =>
-                  updateItem(id, { name: itemName })
-                }
-                onMoveItem={(id, groupId) =>
-                  updateItem(id, { group_id: groupId })
-                }
-                onDeleteItem={(item) => setConfirm({ kind: "item", item })}
-                onCustomChange={saveCustom}
-                onRename={() => setRenaming({ kind: "group", group })}
-                onColor={(color) => updateGroup(group.id, { color })}
-                onMove={(direction) => moveGroup(group.id, direction)}
-                onDelete={() => setConfirm({ kind: "group", group })}
-              />
-            ))
-          )}
-        </div>
+        {settings.view === "kanban" ? (
+          <div className="min-h-0 flex-1">
+            <BoardKanban
+              items={visible}
+              groups={groups}
+              columns={columns}
+              field={settings.kanbanField}
+              onFieldChange={(kanbanField) => updateSettings({ kanbanField })}
+              onMove={(item, column, value) =>
+                saveCustom(item.id, column.id, value)
+              }
+              onAddStatusColumn={async () => {
+                const added = await columnsApi.add("status");
+                if (added) updateSettings({ kanbanField: added.id });
+              }}
+            />
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-auto pb-10">
+            {groups.length === 0 ? (
+              <div className="flex flex-col items-start gap-3 p-4">
+                <p className="text-soft">
+                  This board is empty. Add a group to start adding items.
+                </p>
+                <Button variant="secondary" size="sm" onClick={addGroup}>
+                  <PlusIcon aria-hidden className="size-3" />
+                  Add group
+                </Button>
+              </div>
+            ) : (
+              groups.map((group, index) => (
+                <BoardGroupSection
+                  key={group.id}
+                  group={group}
+                  groups={groups}
+                  index={index}
+                  items={visible.filter((item) => item.group_id === group.id)}
+                  onAddItem={(itemName) => addItem(group.id, itemName)}
+                  onRenameItem={(id, itemName) =>
+                    updateItem(id, { name: itemName })
+                  }
+                  onMoveItem={(id, groupId) =>
+                    updateItem(id, { group_id: groupId })
+                  }
+                  onDeleteItem={deleteItem}
+                  onCustomChange={saveCustom}
+                  onRename={() => setRenaming({ kind: "group", group })}
+                  onColor={(color) => updateGroup(group.id, { color })}
+                  onMove={(direction) => moveGroup(group.id, direction)}
+                  onDelete={() => setConfirm({ kind: "group", group })}
+                />
+              ))
+            )}
+          </div>
+        )}
 
         <NameDialog
           open={renaming !== null}
@@ -449,6 +540,8 @@ export default function BoardView({
               updateGroup(renaming.group.id, { name: next });
           }}
         />
+
+        <UndoToast notice={undo} onClose={closeUndo} />
 
         <Dialog
           open={confirm !== null}

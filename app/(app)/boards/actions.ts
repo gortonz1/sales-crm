@@ -105,12 +105,14 @@ export async function importMondayBoard(
 
   const { data: existing } = await supabase
     .from("boards")
-    .select("id, name")
+    .select("id, name, deleted_at")
     .eq("monday_board_id", mondayBoardId)
     .maybeSingle();
   if (existing) {
     return {
-      error: `This board is already imported as “${existing.name}”. Delete that board first to import it again.`,
+      error: existing.deleted_at
+        ? `This board was imported before as “${existing.name}” and is in the Bin. Delete it forever from the Bin to import it again.`
+        : `This board is already imported as “${existing.name}”. Delete that board and remove it from the Bin to import it again.`,
     };
   }
 

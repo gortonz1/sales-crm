@@ -22,6 +22,8 @@ import ClipboardIcon from "@/public/assets/images/companies/sidebar/clipboard.sv
 import WalletIcon from "@/public/assets/images/companies/sidebar/wallet.svg";
 import ListIcon from "@/public/assets/images/companies/sidebar/list.svg";
 import PlusIcon from "@/public/assets/images/_common/plus.svg";
+import TrashIcon from "@/public/assets/images/_common/trash.svg";
+import UserPlusIcon from "@/public/assets/images/companies/sidebar/user-plus.svg";
 
 export default function SidebarContent({
   email,
@@ -144,6 +146,24 @@ export default function SidebarContent({
           </span>
         )}
         <ul className="flex flex-col">
+          {isAdmin && (
+            <SidebarNavItem
+              icon={UserPlusIcon}
+              label="Team"
+              href="/team"
+              tone="quiet"
+              onClick={closeSidebar}
+              active={pathname.startsWith("/team")}
+            />
+          )}
+          <SidebarNavItem
+            icon={TrashIcon}
+            label="Bin"
+            href="/bin"
+            tone="quiet"
+            onClick={closeSidebar}
+            active={pathname.startsWith("/bin")}
+          />
           <SidebarNavItem
             icon={theme === "light" ? MoonIcon : SunIcon}
             label={theme === "light" ? "Night theme" : "Day theme"}

@@ -55,3 +55,38 @@ export function matchesItemSearch(
     return shown.toLowerCase().includes(q);
   });
 }
+
+export const BIN_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function binDaysLeft(deletedAt: string) {
+  const age = Date.now() - new Date(deletedAt).getTime();
+  return Math.max(0, BIN_DAYS - Math.floor(age / DAY_MS));
+}
+
+const relative = new Intl.RelativeTimeFormat("en-GB", { numeric: "auto" });
+
+export function deletedAgo(deletedAt: string) {
+  const minutes = Math.round(
+    (new Date(deletedAt).getTime() - Date.now()) / 60000,
+  );
+  if (minutes > -60) return relative.format(minutes, "minute");
+  if (minutes > -60 * 24)
+    return relative.format(Math.round(minutes / 60), "hour");
+  return relative.format(Math.round(minutes / (60 * 24)), "day");
+}
+
+export type BinKind = "board" | "group" | "item" | "column";
+
+export type BinEntry = {
+  kind: BinKind;
+  id: string;
+  name: string;
+  place: string | null;
+  boardId: string | null;
+  deletedAt: string;
+  deletedBy: string | null;
+  detail: string | null;
+  ago: string;
+  daysLeft: number;
+};

@@ -77,16 +77,36 @@ export function useBoardColumns(
     const removed = columns.find((column) => column.id === id);
     setError(null);
     setColumns((current) => current.filter((column) => column.id !== id));
-    const { error } = await createClient()
-      .from("board_columns")
-      .delete()
-      .eq("id", id);
+    const table = createClient().from("board_columns");
+    const { error } =
+      board === "custom"
+        ? await table
+            .update({ deleted_at: new Date().toISOString() })
+            .eq("id", id)
+        : await table.delete().eq("id", id);
     if (error) {
       setColumns(previous);
       setError(`Couldn't delete the column: ${error.message}`);
-      return;
+      return false;
     }
-    if (removed?.type === "file") removeColumnFiles(id).catch(() => undefined);
+    if (board !== "custom" && removed?.type === "file")
+      removeColumnFiles(id).catch(() => undefined);
+    return true;
+  }
+
+  async function restore(column: BoardColumn) {
+    setError(null);
+    setColumns((current) => sortColumns([...current, column]));
+    const { error } = await createClient()
+      .from("board_columns")
+      .update({ deleted_at: null })
+      .eq("id", column.id);
+    if (error) {
+      setColumns((current) =>
+        current.filter((entry) => entry.id !== column.id),
+      );
+      setError(`Couldn't restore the column: ${error.message}`);
+    }
   }
 
   async function move(id: string, toIndex: number) {
@@ -135,6 +155,8 @@ export function useBoardColumns(
     clearError: () => setError(null),
     add,
     remove,
+    restore,
+    inBin: board === "custom",
     move,
     rename: (id: string, label: string) => update(id, { label }),
     changeType,
