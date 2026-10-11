@@ -15,6 +15,16 @@ export type CustomTarget =
   | "board_items";
 export type CustomRow = { id: string; custom: Json };
 
+export type StoredFile = {
+  id: string;
+  name: string;
+  path: string;
+  size: number;
+  type: string;
+  uploadedAt: string;
+};
+export type CellValue = string | number | boolean | StoredFile[] | null;
+
 export type ColumnType =
   | "text"
   | "number"
@@ -23,7 +33,8 @@ export type ColumnType =
   | "checkbox"
   | "email"
   | "phone"
-  | "link";
+  | "link"
+  | "file";
 
 export const COLUMN_TYPES: { value: ColumnType; label: string }[] = [
   { value: "status", label: "Status" },
@@ -34,6 +45,7 @@ export const COLUMN_TYPES: { value: ColumnType; label: string }[] = [
   { value: "email", label: "Email" },
   { value: "phone", label: "Phone" },
   { value: "link", label: "Link" },
+  { value: "file", label: "Files" },
 ];
 
 export const typeLabel = (type: string) =>
@@ -48,6 +60,7 @@ const DEFAULT_WIDTHS: Record<ColumnType, number> = {
   email: 14,
   phone: 9,
   link: 12,
+  file: 10,
 };
 
 export const defaultWidth = (type: ColumnType) => DEFAULT_WIDTHS[type];
@@ -134,13 +147,14 @@ export function linkHref(type: string, value: string) {
 export function withCustom<Row extends CustomRow>(
   row: Row,
   columnId: string,
-  value: string | number | boolean | null,
+  value: CellValue,
 ): Row {
   const base =
     row.custom && typeof row.custom === "object" && !Array.isArray(row.custom)
       ? { ...row.custom }
       : {};
-  if (value === null) delete base[columnId];
+  if (value === null || (Array.isArray(value) && value.length === 0))
+    delete base[columnId];
   else base[columnId] = value;
   return { ...row, custom: base };
 }

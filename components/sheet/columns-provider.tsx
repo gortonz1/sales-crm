@@ -18,6 +18,7 @@ type ColumnsContext = {
   api: ColumnsApi;
   editLabels: (column: BoardColumn) => void;
   confirmDelete: (column: BoardColumn) => void;
+  notify: (message: string) => void;
 };
 
 const Context = createContext<ColumnsContext | null>(null);
@@ -37,6 +38,8 @@ export default function ColumnsProvider({
 }) {
   const [labelsId, setLabelsId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<BoardColumn | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const message = api.error ?? notice;
   const labelsColumn =
     api.columns.find((column) => column.id === labelsId) ?? null;
 
@@ -46,6 +49,7 @@ export default function ColumnsProvider({
         api,
         editLabels: (column) => setLabelsId(column.id),
         confirmDelete: setDeleting,
+        notify: setNotice,
       }}
     >
       {children}
@@ -62,8 +66,11 @@ export default function ColumnsProvider({
           <DialogHeader>
             <DialogTitle>Delete “{deleting?.label}”?</DialogTitle>
             <DialogDescription>
-              The column and everything entered in it will be removed from every
-              row. This can&apos;t be undone.
+              The column and everything entered in it
+              {deleting?.type === "file"
+                ? ", including uploaded files,"
+                : ""}{" "}
+              will be removed from every row. This can&apos;t be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -83,15 +90,18 @@ export default function ColumnsProvider({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {api.error && (
+      {message && (
         <div
           role="alert"
           className="caption-style text-danger bg-popover border-line-strong shadow-overlay fixed right-4 bottom-4 z-50 flex max-w-[24em] items-start gap-3 rounded-lg border px-3 py-2.5"
         >
-          <span className="min-w-0 flex-1">{api.error}</span>
+          <span className="min-w-0 flex-1">{message}</span>
           <button
             type="button"
-            onClick={api.clearError}
+            onClick={() => {
+              api.clearError();
+              setNotice(null);
+            }}
             className="text-subtle hover:text-foreground cursor-pointer"
           >
             Dismiss

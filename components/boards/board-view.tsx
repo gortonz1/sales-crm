@@ -36,6 +36,7 @@ import {
   type CustomBoard,
 } from "@/lib/boards";
 import { withCustom, type BoardColumn } from "@/lib/columns";
+import { filePaths, removeFiles } from "@/lib/files";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
@@ -83,6 +84,9 @@ export default function BoardView({
       ),
     [items, columnsApi.columns, query],
   );
+
+  const discardFiles = (rows: BoardItem[]) =>
+    removeFiles(filePaths(rows, columnsApi.columns)).catch(() => undefined);
 
   const fail = (action: string, message?: string) =>
     setError(`Couldn't ${action}: ${message ?? "no response"}`);
@@ -155,7 +159,9 @@ export default function BoardView({
     if (error) {
       setItems((current) => [...current, item]);
       fail(`delete ${item.name}`, error.message);
+      return;
     }
+    discardFiles([item]);
   }
 
   async function addGroup() {
@@ -245,7 +251,9 @@ export default function BoardView({
       setGroups(previousGroups);
       setItems(previousItems);
       fail(`delete ${group.name}`, error.message);
+      return;
     }
+    discardFiles(previousItems.filter((item) => item.group_id === group.id));
   }
 
   async function renameBoard(next: string) {
@@ -270,6 +278,7 @@ export default function BoardView({
       .delete()
       .eq("id", board.id);
     if (error) return fail("delete the board", error.message);
+    discardFiles(items);
     router.replace("/");
     router.refresh();
   }

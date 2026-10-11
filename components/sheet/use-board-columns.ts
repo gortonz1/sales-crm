@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { removeColumnFiles } from "@/lib/files";
 import { createClient } from "@/lib/supabase/client";
 import {
   defaultOptions,
@@ -10,6 +11,7 @@ import {
   type Board,
   type BoardColumn,
   type ColumnType,
+  type CellValue,
   type CustomTarget,
 } from "@/lib/columns";
 import type { Option } from "@/lib/recruitment";
@@ -70,6 +72,7 @@ export function useBoardColumns(
 
   async function remove(id: string) {
     const previous = columns;
+    const removed = columns.find((column) => column.id === id);
     setError(null);
     setColumns((current) => current.filter((column) => column.id !== id));
     const { error } = await createClient()
@@ -79,7 +82,9 @@ export function useBoardColumns(
     if (error) {
       setColumns(previous);
       setError(`Couldn't delete the column: ${error.message}`);
+      return;
     }
+    if (removed?.type === "file") removeColumnFiles(id).catch(() => undefined);
   }
 
   async function move(id: string, toIndex: number) {
@@ -140,7 +145,7 @@ export async function saveCustomValue(
   target: CustomTarget,
   rowId: string,
   columnId: string,
-  value: string | number | boolean | null,
+  value: CellValue,
 ) {
   return createClient().rpc("set_custom_value", {
     target,
