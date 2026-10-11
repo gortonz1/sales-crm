@@ -5,12 +5,20 @@ export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const [{ data }, boardsResult, adminResult] = await Promise.all([
+    supabase.auth.getClaims(),
+    supabase.from("boards").select("id, name").order("position"),
+    supabase.rpc("crm_is_admin"),
+  ]);
   const email = (data?.claims?.email as string | undefined) ?? null;
 
   return (
     <main className="flex h-dvh max-w-full overflow-hidden">
-      <Sidebar email={email} />
+      <Sidebar
+        email={email}
+        boards={boardsResult.data ?? []}
+        isAdmin={adminResult.data === true}
+      />
       {children}
     </main>
   );

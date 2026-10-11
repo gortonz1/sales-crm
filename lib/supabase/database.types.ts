@@ -15,6 +15,7 @@ export type Database = {
       board_columns: {
         Row: {
           board: string
+          board_id: string | null
           created_at: string
           field: string | null
           hidden: boolean
@@ -28,6 +29,7 @@ export type Database = {
         }
         Insert: {
           board: string
+          board_id?: string | null
           label: string
           options?: Json
           position: number
@@ -41,6 +43,96 @@ export type Database = {
           position?: number
           type?: string
           width?: number
+        }
+        Relationships: []
+      }
+      board_groups: {
+        Row: {
+          board_id: string
+          color: string
+          created_at: string
+          id: string
+          monday_group_id: string | null
+          name: string
+          position: number
+        }
+        Insert: {
+          board_id: string
+          color?: string
+          monday_group_id?: string | null
+          name: string
+          position?: number
+        }
+        Update: {
+          color?: string
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_groups_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      board_items: {
+        Row: {
+          board_id: string
+          created_at: string
+          created_by: string | null
+          custom: Json
+          group_id: string
+          id: string
+          monday_item_id: string | null
+          name: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          board_id: string
+          custom?: Json
+          group_id: string
+          monday_item_id?: string | null
+          name: string
+          position?: number
+        }
+        Update: {
+          custom?: Json
+          group_id?: string
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_items_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      boards: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          monday_board_id: string | null
+          name: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          monday_board_id?: string | null
+          name: string
+          position?: number
+        }
+        Update: {
+          name?: string
+          position?: number
         }
         Relationships: []
       }
@@ -83,9 +175,9 @@ export type Database = {
         Relationships: []
       }
       crm_members: {
-        Row: { added_at: string; email: string }
-        Insert: { added_at?: string; email: string }
-        Update: { added_at?: string; email?: string }
+        Row: { added_at: string; email: string; is_admin: boolean }
+        Insert: { added_at?: string; email: string; is_admin?: boolean }
+        Update: { added_at?: string; email?: string; is_admin?: boolean }
         Relationships: []
       }
       ingest_keys: {
@@ -313,6 +405,7 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
+      crm_is_admin: { Args: never; Returns: boolean }
       earnings_load: { Args: { session: string }; Returns: Json }
       earnings_lock: { Args: { session: string }; Returns: undefined }
       earnings_save: {

@@ -2,8 +2,17 @@ import type { Json, Tables } from "@/lib/supabase/database.types";
 import type { Option } from "@/lib/recruitment";
 
 export type BoardColumn = Tables<"board_columns">;
-export type Board = "leads" | "ai-enquiries" | "mock-exam" | "recruitment";
-export type CustomTarget = "leads" | "recruitments" | "course_interests";
+export type Board =
+  | "leads"
+  | "ai-enquiries"
+  | "mock-exam"
+  | "recruitment"
+  | "custom";
+export type CustomTarget =
+  | "leads"
+  | "recruitments"
+  | "course_interests"
+  | "board_items";
 export type CustomRow = { id: string; custom: Json };
 
 export type ColumnType =

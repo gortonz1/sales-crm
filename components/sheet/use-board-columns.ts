@@ -10,13 +10,18 @@ import {
   type Board,
   type BoardColumn,
   type ColumnType,
+  type CustomTarget,
 } from "@/lib/columns";
 import type { Option } from "@/lib/recruitment";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 
 export type ColumnsApi = ReturnType<typeof useBoardColumns>;
 
-export function useBoardColumns(board: Board, initial: BoardColumn[]) {
+export function useBoardColumns(
+  board: Board,
+  initial: BoardColumn[],
+  boardId: string | null = null,
+) {
   const [columns, setColumns] = useState(() => sortColumns(initial));
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +51,7 @@ export function useBoardColumns(board: Board, initial: BoardColumn[]) {
       .from("board_columns")
       .insert({
         board,
+        board_id: boardId,
         label: typeLabel(type),
         type,
         position,
@@ -131,7 +137,7 @@ export function useBoardColumns(board: Board, initial: BoardColumn[]) {
 }
 
 export async function saveCustomValue(
-  target: "leads" | "recruitments" | "course_interests",
+  target: CustomTarget,
   rowId: string,
   columnId: string,
   value: string | number | boolean | null,

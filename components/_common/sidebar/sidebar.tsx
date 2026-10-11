@@ -9,28 +9,37 @@ import {
 import SidebarContent from "./sidebar-content";
 import SidebarResizer from "./sidebar-resizer";
 import { useCompaniesStore } from "@/stores/companies-store";
+import type { BoardLink } from "@/lib/boards";
 
-export default function Sidebar({ email }: { email: string | null }) {
+export default function Sidebar({
+  email,
+  boards,
+  isAdmin,
+}: {
+  email: string | null;
+  boards: BoardLink[];
+  isAdmin: boolean;
+}) {
   const sidebarOpen = useCompaniesStore((state) => state.sidebarOpen);
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
 
   return (
     <>
-      <aside className="relative hidden w-(--sidebar-width) shrink-0 border-r border-sidebar-border bg-sidebar lg:flex lg:flex-col">
-        <SidebarContent email={email} />
+      <aside className="border-sidebar-border bg-sidebar relative hidden w-(--sidebar-width) shrink-0 border-r lg:flex lg:flex-col">
+        <SidebarContent email={email} boards={boards} isAdmin={isAdmin} />
         <SidebarResizer />
       </aside>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent
           side="left"
-          className="w-[254px] max-w-[85vw] border-sidebar-border bg-sidebar"
+          className="border-sidebar-border bg-sidebar w-[254px] max-w-[85vw]"
         >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SheetDescription className="sr-only">
             Sales CRM sections
           </SheetDescription>
-          <SidebarContent email={email} />
+          <SidebarContent email={email} boards={boards} isAdmin={isAdmin} />
         </SheetContent>
       </Sheet>
     </>
