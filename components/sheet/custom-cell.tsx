@@ -14,24 +14,43 @@ import {
   asText,
   columnOptions,
   type BoardColumn,
+  type CellValue,
 } from "@/lib/columns";
+import { asFiles } from "@/lib/files";
 import type { Json } from "@/lib/supabase/database.types";
+import { useColumns } from "./columns-provider";
+import FileCell from "./file-cell";
 
-export type CustomValue = string | number | boolean | null;
+export type CustomValue = CellValue;
 
 export default function CustomCell({
   column,
+  rowId,
   value,
   onCommit,
   onEditLabels,
 }: {
   column: BoardColumn;
+  rowId: string;
   value: Json;
   onCommit: (value: CustomValue) => void;
   onEditLabels: () => void;
 }) {
+  const { notify } = useColumns();
   const label = column.label;
   switch (column.type) {
+    case "file":
+      return (
+        <FileCell
+          label={label}
+          width={column.width}
+          columnId={column.id}
+          rowId={rowId}
+          files={asFiles(value)}
+          onCommit={onCommit}
+          onError={notify}
+        />
+      );
     case "status":
       return (
         <PillCell

@@ -13,7 +13,7 @@ export type MonthTotals = {
   total: number;
 };
 
-const PLOT_HEIGHT = 220;
+const PLOT_HEIGHT = 170;
 
 function niceMoney(value: number) {
   if (value <= 0) return 1000;
@@ -57,11 +57,15 @@ export default function EarningsChart({
   return (
     <Panel
       title="Monthly earnings profile"
-      description={
+      description={`${
         runOff > 0
           ? `Income falls ${runOff}% from its ${gbp(peak)} peak to ${gbp(last.total)} in July.`
           : `Income runs from ${gbp(first.total)} in August to ${gbp(last.total)} in July.`
-      }
+      } ${
+        selected == null
+          ? "Click a month to see who makes it up."
+          : `Showing ${MONTHS[selected]} below.`
+      }`}
     >
       <ul className="flex flex-wrap gap-x-4 gap-y-1.5" aria-label="Key">
         {EARNINGS_SERIES.map((series) => (
@@ -182,12 +186,6 @@ export default function EarningsChart({
           ))}
         </div>
       </div>
-
-      <p className="caption-style text-subtle">
-        {selected == null
-          ? "Click a month to see who makes it up."
-          : `Showing ${MONTHS[selected]} below.`}
-      </p>
     </Panel>
   );
 }

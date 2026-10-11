@@ -206,45 +206,7 @@ export default function EarningsDashboard({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <span className="eyebrow-style text-subtle text-[11px] leading-[1.4]">
-          Apps indicative earnings · funding year {report.year} · generated{" "}
-          {report.generated}
-        </span>
-        <span className="text-[40px] leading-none font-medium tracking-[-0.02em] tabular-nums">
-          {gbp(grand)}
-        </span>
-        <p className="caption-style text-subtle leading-[1.4]">
-          {planHeads > 0
-            ? `${gbp(k.provider)} from ${adjusted.length} apprentices on the report, ${gbp(planTotal)} from ${planHeads} planned starts`
-            : `Forecast provider income across ${adjusted.length} apprentices on ${report.standard}`}
-        </p>
-      </div>
-
-      <ul className="grid grid-cols-1 gap-3 min-[30em]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-        {tiles.map((tile) => (
-          <li
-            key={tile.label}
-            className="border-line-strong bg-card flex flex-col gap-2 rounded-xl border p-4"
-          >
-            <h2 className="caption-style text-subtle font-medium">
-              {tile.label}
-            </h2>
-            <span className="text-[28px] leading-none font-medium tabular-nums">
-              {tile.value}
-            </span>
-            <span className="caption-style text-subtle">{tile.detail}</span>
-          </li>
-        ))}
-      </ul>
-
       <EarningsChart
-        monthly={k.monthly}
-        selected={selected}
-        onSelect={select}
-      />
-
-      <MonthlyTotals
         monthly={k.monthly}
         selected={selected}
         onSelect={select}
@@ -269,6 +231,12 @@ export default function EarningsDashboard({
           setPlan={setCostPlan}
         />
       </Suspense>
+
+      <MonthlyTotals
+        monthly={k.monthly}
+        selected={selected}
+        onSelect={select}
+      />
 
       <Planner
         programmes={programmes}
@@ -325,6 +293,38 @@ export default function EarningsDashboard({
         year={report.year}
         fileName={report.fileName}
       />
+
+      <div className="flex flex-col gap-3">
+        <span className="eyebrow-style text-subtle text-[11px] leading-[1.4]">
+          Apps indicative earnings · funding year {report.year} · generated{" "}
+          {report.generated}
+        </span>
+        <span className="text-[40px] leading-none font-medium tracking-[-0.02em] tabular-nums">
+          {gbp(grand)}
+        </span>
+        <p className="caption-style text-subtle leading-[1.4]">
+          {planHeads > 0
+            ? `${gbp(k.provider)} from ${adjusted.length} apprentices on the report, ${gbp(planTotal)} from ${planHeads} planned starts`
+            : `Forecast provider income across ${adjusted.length} apprentices on ${report.standard}`}
+        </p>
+      </div>
+
+      <ul className="grid grid-cols-1 gap-3 min-[30em]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+        {tiles.map((tile) => (
+          <li
+            key={tile.label}
+            className="border-line-strong bg-card flex flex-col gap-2 rounded-xl border p-4"
+          >
+            <h2 className="caption-style text-subtle font-medium">
+              {tile.label}
+            </h2>
+            <span className="text-[28px] leading-none font-medium tabular-nums">
+              {tile.value}
+            </span>
+            <span className="caption-style text-subtle">{tile.detail}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

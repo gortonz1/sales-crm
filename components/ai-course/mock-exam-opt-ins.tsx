@@ -155,7 +155,7 @@ export default function MockExamOptIns({
     );
     const { data, error } = await saveCustomValue(
       "course_interests",
-      id,
+      previous,
       columnId,
       value,
     );

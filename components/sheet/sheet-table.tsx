@@ -104,6 +104,7 @@ export default function SheetTable<Row extends CustomRow>({
                 ) : (
                   <CustomCell
                     column={column}
+                    rowId={row.id}
                     value={customValue(row, column.id)}
                     onCommit={(value) => onCustomChange(row, column, value)}
                     onEditLabels={() => editLabels(column)}

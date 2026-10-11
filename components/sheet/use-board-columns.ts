@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { asFiles, removeColumnFiles } from "@/lib/files";
 import { createClient } from "@/lib/supabase/client";
 import {
   defaultOptions,
@@ -10,13 +11,21 @@ import {
   type Board,
   type BoardColumn,
   type ColumnType,
+  customValue,
+  type CellValue,
+  type CustomRow,
+  type CustomTarget,
 } from "@/lib/columns";
 import type { Option } from "@/lib/recruitment";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
 
 export type ColumnsApi = ReturnType<typeof useBoardColumns>;
 
-export function useBoardColumns(board: Board, initial: BoardColumn[]) {
+export function useBoardColumns(
+  board: Board,
+  initial: BoardColumn[],
+  boardId: string | null = null,
+) {
   const [columns, setColumns] = useState(() => sortColumns(initial));
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +55,7 @@ export function useBoardColumns(board: Board, initial: BoardColumn[]) {
       .from("board_columns")
       .insert({
         board,
+        board_id: boardId,
         label: typeLabel(type),
         type,
         position,
@@ -64,15 +74,38 @@ export function useBoardColumns(board: Board, initial: BoardColumn[]) {
 
   async function remove(id: string) {
     const previous = columns;
+    const removed = columns.find((column) => column.id === id);
     setError(null);
     setColumns((current) => current.filter((column) => column.id !== id));
-    const { error } = await createClient()
-      .from("board_columns")
-      .delete()
-      .eq("id", id);
+    const table = createClient().from("board_columns");
+    const { error } =
+      board === "custom"
+        ? await table
+            .update({ deleted_at: new Date().toISOString() })
+            .eq("id", id)
+        : await table.delete().eq("id", id);
     if (error) {
       setColumns(previous);
       setError(`Couldn't delete the column: ${error.message}`);
+      return false;
+    }
+    if (board !== "custom" && removed?.type === "file")
+      removeColumnFiles(id).catch(() => undefined);
+    return true;
+  }
+
+  async function restore(column: BoardColumn) {
+    setError(null);
+    setColumns((current) => sortColumns([...current, column]));
+    const { error } = await createClient()
+      .from("board_columns")
+      .update({ deleted_at: null })
+      .eq("id", column.id);
+    if (error) {
+      setColumns((current) =>
+        current.filter((entry) => entry.id !== column.id),
+      );
+      setError(`Couldn't restore the column: ${error.message}`);
     }
   }
 
@@ -122,6 +155,8 @@ export function useBoardColumns(board: Board, initial: BoardColumn[]) {
     clearError: () => setError(null),
     add,
     remove,
+    restore,
+    inBin: board === "custom",
     move,
     rename: (id: string, label: string) => update(id, { label }),
     changeType,
@@ -131,14 +166,27 @@ export function useBoardColumns(board: Board, initial: BoardColumn[]) {
 }
 
 export async function saveCustomValue(
-  target: "leads" | "recruitments" | "course_interests",
-  rowId: string,
+  target: CustomTarget,
+  previous: CustomRow,
   columnId: string,
-  value: string | number | boolean | null,
+  value: CellValue,
 ) {
+  if (Array.isArray(value)) {
+    const now = value;
+    const was = asFiles(customValue(previous, columnId));
+    return createClient().rpc("update_custom_files", {
+      target,
+      row_id: previous.id,
+      column_id: columnId,
+      add_files: now.filter((file) => !was.some((old) => old.id === file.id)),
+      remove_ids: was
+        .filter((old) => !now.some((file) => file.id === old.id))
+        .map((old) => old.id),
+    });
+  }
   return createClient().rpc("set_custom_value", {
     target,
-    row_id: rowId,
+    row_id: previous.id,
     column_id: columnId,
     value,
   });

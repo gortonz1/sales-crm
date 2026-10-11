@@ -1,10 +1,12 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ScrollArea } from "@/components/_ui/scroll-area";
 import SidebarNavItem from "./sidebar-nav-item";
 import SidebarSection from "./sidebar-section";
+import NewBoardDialog from "@/components/boards/new-board-dialog";
+import { boardHref, type BoardLink } from "@/lib/boards";
 import { useCompaniesStore } from "@/stores/companies-store";
 import { createClient } from "@/lib/supabase/client";
 import { readTheme, setTheme, subscribeTheme } from "@/lib/theme";
@@ -18,8 +20,21 @@ import TargetIcon from "@/public/assets/images/companies/sidebar/target-05.svg";
 import ChartIcon from "@/public/assets/images/companies/sidebar/bar-chart.svg";
 import ClipboardIcon from "@/public/assets/images/companies/sidebar/clipboard.svg";
 import WalletIcon from "@/public/assets/images/companies/sidebar/wallet.svg";
+import ListIcon from "@/public/assets/images/companies/sidebar/list.svg";
+import PlusIcon from "@/public/assets/images/_common/plus.svg";
+import TrashIcon from "@/public/assets/images/_common/trash.svg";
+import UserPlusIcon from "@/public/assets/images/companies/sidebar/user-plus.svg";
 
-export default function SidebarContent({ email }: { email: string | null }) {
+export default function SidebarContent({
+  email,
+  boards,
+  isAdmin,
+}: {
+  email: string | null;
+  boards: BoardLink[];
+  isAdmin: boolean;
+}) {
+  const [creating, setCreating] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
@@ -86,6 +101,32 @@ export default function SidebarContent({ email }: { email: string | null }) {
             />
           </SidebarSection>
 
+          {(boards.length > 0 || isAdmin) && (
+            <SidebarSection
+              title="Boards"
+              className="border-sidebar-border border-b"
+            >
+              {boards.map((board) => (
+                <SidebarNavItem
+                  key={board.id}
+                  icon={ListIcon}
+                  label={board.name}
+                  href={boardHref(board.id)}
+                  onClick={closeSidebar}
+                  active={pathname === boardHref(board.id)}
+                />
+              ))}
+              {isAdmin && (
+                <SidebarNavItem
+                  icon={PlusIcon}
+                  label="New board"
+                  tone="quiet"
+                  onClick={() => setCreating(true)}
+                />
+              )}
+            </SidebarSection>
+          )}
+
           <SidebarSection title="Sample data">
             <SidebarNavItem
               icon={BuildingIcon}
@@ -105,6 +146,24 @@ export default function SidebarContent({ email }: { email: string | null }) {
           </span>
         )}
         <ul className="flex flex-col">
+          {isAdmin && (
+            <SidebarNavItem
+              icon={UserPlusIcon}
+              label="Team"
+              href="/team"
+              tone="quiet"
+              onClick={closeSidebar}
+              active={pathname.startsWith("/team")}
+            />
+          )}
+          <SidebarNavItem
+            icon={TrashIcon}
+            label="Bin"
+            href="/bin"
+            tone="quiet"
+            onClick={closeSidebar}
+            active={pathname.startsWith("/bin")}
+          />
           <SidebarNavItem
             icon={theme === "light" ? MoonIcon : SunIcon}
             label={theme === "light" ? "Night theme" : "Day theme"}
@@ -119,6 +178,14 @@ export default function SidebarContent({ email }: { email: string | null }) {
           />
         </ul>
       </div>
+
+      {isAdmin && (
+        <NewBoardDialog
+          open={creating}
+          onOpenChange={setCreating}
+          onCreated={closeSidebar}
+        />
+      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   useBoardColumns,
 } from "@/components/sheet/use-board-columns";
 import { withCustom, type BoardColumn } from "@/lib/columns";
+import { filePaths, removeFiles } from "@/lib/files";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
 import {
@@ -216,6 +217,7 @@ export default function Leads({
     if (error) return `Couldn't delete ${previous.name}: ${error.message}`;
     if (!data?.length)
       return "Only leads added by hand from an email can be deleted.";
+    removeFiles(filePaths([previous])).catch(() => undefined);
     setSelectedId(null);
     setLeads((current) => current.filter((lead) => lead.id !== id));
     setEvents((current) => current.filter((event) => event.lead_id !== id));
@@ -231,7 +233,12 @@ export default function Leads({
         lead.id === id ? withCustom(lead, columnId, value) : lead,
       ),
     );
-    const { data, error } = await saveCustomValue("leads", id, columnId, value);
+    const { data, error } = await saveCustomValue(
+      "leads",
+      previous,
+      columnId,
+      value,
+    );
     setLeads((current) =>
       current.map((lead) =>
         lead.id !== id ? lead : error ? previous : { ...lead, custom: data },
@@ -264,7 +271,7 @@ export default function Leads({
                 <button
                   type="button"
                   onClick={() => setFilter("new")}
-                  className="caption-style bg-muted hover:bg-secondary shrink-0 cursor-pointer rounded-full border border-pill px-2 py-[3px] transition-colors duration-150"
+                  className="caption-style bg-muted hover:bg-secondary border-pill shrink-0 cursor-pointer rounded-full border px-2 py-[3px] transition-colors duration-150"
                 >
                   {newCount} to review
                 </button>

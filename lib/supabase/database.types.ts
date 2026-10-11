@@ -14,7 +14,10 @@ export type Database = {
     Tables: {
       board_columns: {
         Row: {
+          deleted_at: string | null
+          deleted_by: string | null
           board: string
+          board_id: string | null
           created_at: string
           field: string | null
           hidden: boolean
@@ -28,6 +31,7 @@ export type Database = {
         }
         Insert: {
           board: string
+          board_id?: string | null
           label: string
           options?: Json
           position: number
@@ -35,12 +39,112 @@ export type Database = {
           width?: number
         }
         Update: {
+          deleted_at?: string | null
           hidden?: boolean
           label?: string
           options?: Json
           position?: number
           type?: string
           width?: number
+        }
+        Relationships: []
+      }
+      board_groups: {
+        Row: {
+          deleted_at: string | null
+          deleted_by: string | null
+          board_id: string
+          color: string
+          created_at: string
+          id: string
+          monday_group_id: string | null
+          name: string
+          position: number
+        }
+        Insert: {
+          board_id: string
+          color?: string
+          monday_group_id?: string | null
+          name: string
+          position?: number
+        }
+        Update: {
+          deleted_at?: string | null
+          color?: string
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_groups_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      board_items: {
+        Row: {
+          deleted_at: string | null
+          deleted_by: string | null
+          board_id: string
+          created_at: string
+          created_by: string | null
+          custom: Json
+          group_id: string
+          id: string
+          monday_item_id: string | null
+          name: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          board_id: string
+          custom?: Json
+          group_id: string
+          monday_item_id?: string | null
+          name: string
+          position?: number
+        }
+        Update: {
+          deleted_at?: string | null
+          custom?: Json
+          group_id?: string
+          name?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_items_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      boards: {
+        Row: {
+          deleted_at: string | null
+          deleted_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          monday_board_id: string | null
+          name: string
+          position: number
+          updated_at: string
+        }
+        Insert: {
+          monday_board_id?: string | null
+          name: string
+          position?: number
+        }
+        Update: {
+          deleted_at?: string | null
+          name?: string
+          position?: number
         }
         Relationships: []
       }
@@ -83,9 +187,9 @@ export type Database = {
         Relationships: []
       }
       crm_members: {
-        Row: { added_at: string; email: string }
-        Insert: { added_at?: string; email: string }
-        Update: { added_at?: string; email?: string }
+        Row: { added_at: string; email: string; is_admin: boolean }
+        Insert: { added_at?: string; email: string; is_admin?: boolean }
+        Update: { added_at?: string; email?: string; is_admin?: boolean }
         Relationships: []
       }
       ingest_keys: {
@@ -313,6 +417,25 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
+      crm_is_admin: { Args: never; Returns: boolean }
+      crm_team: {
+        Args: never
+        Returns: {
+          added_at: string
+          email: string
+          is_admin: boolean
+          is_you: boolean
+          signed_up: boolean
+        }[]
+      }
+      crm_team_add: { Args: { member_email: string }; Returns: undefined }
+      crm_team_remove: { Args: { member_email: string }; Returns: undefined }
+      crm_team_set_admin: {
+        Args: { make_admin: boolean; member_email: string }
+        Returns: undefined
+      }
+      delete_forever: { Args: { entry_id: string; kind: string }; Returns: string[] }
+      purge_bin: { Args: never; Returns: string[] }
       earnings_load: { Args: { session: string }; Returns: Json }
       earnings_lock: { Args: { session: string }; Returns: undefined }
       earnings_save: {
@@ -343,6 +466,16 @@ export type Database = {
       reorder_board_columns: {
         Args: { board_name: string; ids: string[] }
         Returns: undefined
+      }
+      update_custom_files: {
+        Args: {
+          add_files: Json
+          column_id: string
+          remove_ids: string[]
+          row_id: string
+          target: string
+        }
+        Returns: Json
       }
       set_custom_value: {
         Args: { column_id: string; row_id: string; target: string; value: Json }

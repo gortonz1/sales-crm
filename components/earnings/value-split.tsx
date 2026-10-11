@@ -116,7 +116,7 @@ export function AgeBands({
             <span className="text-foreground font-medium">{gbp(employer)}</span>{" "}
             of 16-18 incentive is payable to employers. It appears on this
             report but is not provider income, so it is excluded from every
-            figure above.
+            earnings figure.
           </span>
         </div>
       </Footnote>
