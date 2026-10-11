@@ -1,11 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/lib/supabase/database.types";
-import {
-  customValue,
-  type BoardColumn,
-  type CustomRow,
-  type StoredFile,
-} from "@/lib/columns";
+import type { CustomRow, StoredFile } from "@/lib/columns";
 
 export const FILES_BUCKET = "crm-files";
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -14,7 +9,30 @@ export const MAX_TEXT_PREVIEW_BYTES = 1024 * 1024;
 const URL_SECONDS = 60 * 60;
 const URL_REUSE_MS = 50 * 60 * 1000;
 
-export type FileKind = "image" | "pdf" | "video" | "audio" | "text" | "other";
+export type FileKind =
+  | "image"
+  | "pdf"
+  | "video"
+  | "audio"
+  | "text"
+  | "office"
+  | "other";
+
+const OFFICE_VIEWER = "https://view.officeapps.live.com/op/embed.aspx";
+const OFFICE_LIMITS: Record<string, number> = {
+  doc: 10,
+  docx: 10,
+  ppt: 10,
+  pptx: 10,
+  xls: 5,
+  xlsx: 5,
+};
+
+export const officeLimitBytes = (name: string) =>
+  (OFFICE_LIMITS[extensionOf(name)] ?? 0) * 1024 * 1024;
+
+export const officeViewerUrl = (fileUrl: string) =>
+  `${OFFICE_VIEWER}?src=${encodeURIComponent(fileUrl)}`;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -58,6 +76,7 @@ export function fileKind(file: Pick<StoredFile, "name" | "type">): FileKind {
   if (file.type.startsWith("video/")) return "video";
   if (file.type.startsWith("audio/")) return "audio";
   if (file.type.startsWith("text/") || TEXT_EXTENSIONS.has(ext)) return "text";
+  if (ext in OFFICE_LIMITS) return "office";
   return "other";
 }
 
@@ -92,13 +111,14 @@ export function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function filePaths(rows: CustomRow[], columns: BoardColumn[]) {
-  const fileColumns = columns.filter((column) => column.type === "file");
-  return rows.flatMap((row) =>
-    fileColumns.flatMap((column) =>
-      asFiles(customValue(row, column.id)).map((file) => file.path),
-    ),
-  );
+export function filePaths(rows: CustomRow[]) {
+  return rows.flatMap((row) => {
+    const custom = row.custom;
+    if (!isRecord(custom)) return [];
+    return Object.values(custom).flatMap((value) =>
+      asFiles(value ?? null).map((file) => file.path),
+    );
+  });
 }
 
 export async function uploadFile(

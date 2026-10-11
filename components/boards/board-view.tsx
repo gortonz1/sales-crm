@@ -86,7 +86,7 @@ export default function BoardView({
   );
 
   const discardFiles = (rows: BoardItem[]) =>
-    removeFiles(filePaths(rows, columnsApi.columns)).catch(() => undefined);
+    removeFiles(filePaths(rows)).catch(() => undefined);
 
   const fail = (action: string, message?: string) =>
     setError(`Couldn't ${action}: ${message ?? "no response"}`);
@@ -137,7 +137,7 @@ export default function BoardView({
     );
     const { data, error } = await saveCustomValue(
       "board_items",
-      id,
+      previous,
       columnId,
       value,
     );

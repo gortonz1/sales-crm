@@ -16,6 +16,15 @@ export const NAME_MAX = 60;
 export const GROUP_NAME_MAX = 80;
 export const ITEM_NAME_MAX = 500;
 
+export const FILE_BATCH = 5;
+
+export type PendingFile = {
+  itemId: string;
+  columnId: string;
+  assetId: string;
+  name: string;
+};
+
 export const boardHref = (id: string) => `/boards/${id}`;
 
 export const groupColor = (index: number) =>

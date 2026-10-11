@@ -127,7 +127,7 @@ export default function Recruitment({
     );
     const { data, error } = await saveCustomValue(
       "recruitments",
-      id,
+      previous,
       columnId,
       value,
     );

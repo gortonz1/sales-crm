@@ -437,6 +437,16 @@ export type Database = {
         Args: { board_name: string; ids: string[] }
         Returns: undefined
       }
+      update_custom_files: {
+        Args: {
+          add_files: Json
+          column_id: string
+          remove_ids: string[]
+          row_id: string
+          target: string
+        }
+        Returns: Json
+      }
       set_custom_value: {
         Args: { column_id: string; row_id: string; target: string; value: Json }
         Returns: Json

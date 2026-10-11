@@ -217,9 +217,7 @@ export default function Leads({
     if (error) return `Couldn't delete ${previous.name}: ${error.message}`;
     if (!data?.length)
       return "Only leads added by hand from an email can be deleted.";
-    removeFiles(filePaths([previous], columnsApi.columns)).catch(
-      () => undefined,
-    );
+    removeFiles(filePaths([previous])).catch(() => undefined);
     setSelectedId(null);
     setLeads((current) => current.filter((lead) => lead.id !== id));
     setEvents((current) => current.filter((event) => event.lead_id !== id));
@@ -235,7 +233,12 @@ export default function Leads({
         lead.id === id ? withCustom(lead, columnId, value) : lead,
       ),
     );
-    const { data, error } = await saveCustomValue("leads", id, columnId, value);
+    const { data, error } = await saveCustomValue(
+      "leads",
+      previous,
+      columnId,
+      value,
+    );
     setLeads((current) =>
       current.map((lead) =>
         lead.id !== id ? lead : error ? previous : { ...lead, custom: data },

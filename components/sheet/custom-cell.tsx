@@ -47,7 +47,7 @@ export default function CustomCell({
           columnId={column.id}
           rowId={rowId}
           files={asFiles(value)}
-          onCommit={(files) => onCommit(files.length ? files : null)}
+          onCommit={onCommit}
           onError={notify}
         />
       );

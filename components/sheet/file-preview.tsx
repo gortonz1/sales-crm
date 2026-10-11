@@ -17,6 +17,8 @@ import {
   fileKind,
   fileUrl,
   formatBytes,
+  officeLimitBytes,
+  officeViewerUrl,
 } from "@/lib/files";
 import { cn } from "@/lib/utils";
 import ChevronDownIcon from "@/public/assets/images/_common/chevron-down.svg";
@@ -214,6 +216,15 @@ function PreviewBody({ file }: { file: StoredFile }) {
       ) : (
         <NoPreview file={file} reason="This file is too large to preview." />
       );
+    case "office":
+      return file.size <= officeLimitBytes(file.name) ? (
+        <OfficePreview file={file} url={url} />
+      ) : (
+        <NoPreview
+          file={file}
+          reason="This file is too large for Microsoft's previewer."
+        />
+      );
     default:
       return <NoPreview file={file} />;
   }
@@ -240,6 +251,22 @@ function TextPreview({ url }: { url: string }) {
     <pre className="absolute inset-0 overflow-auto p-5 font-mono text-[12px] leading-[1.6] whitespace-pre-wrap">
       {text}
     </pre>
+  );
+}
+
+function OfficePreview({ file, url }: { file: StoredFile; url: string }) {
+  return (
+    <div className="absolute inset-0 flex flex-col">
+      <iframe
+        src={officeViewerUrl(url)}
+        title={file.name}
+        className="min-h-0 flex-1 border-0 bg-white"
+      />
+      <p className="caption-style text-subtle border-line-strong border-t px-5 py-2">
+        Previewed with Microsoft Office for the web. If it doesn&apos;t load,
+        use Download.
+      </p>
+    </div>
   );
 }
 

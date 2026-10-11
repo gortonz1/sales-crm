@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
+  copyMondayFiles,
   createBoard,
   importMondayBoard,
   listMondayBoards,
@@ -27,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/_ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/_ui/tabs";
-import { NAME_MAX, boardHref } from "@/lib/boards";
+import { FILE_BATCH, NAME_MAX, boardHref } from "@/lib/boards";
 import type { MondayBoardSummary } from "@/lib/monday";
 
 type Mode = "blank" | "monday";
@@ -163,6 +164,10 @@ function MondayForm({
   const [boardId, setBoardId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<string[] | null>(null);
+  const [copying, setCopying] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const [pending, startTransition] = useTransition();
 
   function loadBoards(event: FormEvent) {
@@ -193,9 +198,42 @@ function MondayForm({
         setError(result.error ?? "Couldn't import the board.");
         return;
       }
+      const pendingFiles = result.files ?? [];
+      const failedFiles: string[] = [];
+      let copied = 0;
+      if (pendingFiles.length) {
+        setCopying({ done: 0, total: pendingFiles.length });
+        for (let i = 0; i < pendingFiles.length; i += FILE_BATCH) {
+          const batch = pendingFiles.slice(i, i + FILE_BATCH);
+          const copy = await copyMondayFiles(token, result.id, batch);
+          copied += copy.copied;
+          failedFiles.push(...copy.failed);
+          setCopying({
+            done: Math.min(i + batch.length, pendingFiles.length),
+            total: pendingFiles.length,
+          });
+        }
+        setCopying(null);
+      }
       const next = [
-        `Imported ${result.items ?? 0} ${result.items === 1 ? "item" : "items"}.`,
+        `Imported ${result.items ?? 0} ${result.items === 1 ? "item" : "items"}${
+          pendingFiles.length
+            ? ` and ${copied} ${copied === 1 ? "file" : "files"}`
+            : ""
+        }.`,
       ];
+      if (failedFiles.length) {
+        const shown = failedFiles.slice(0, 8).join(", ");
+        const more = failedFiles.length - 8;
+        next.push(
+          `These files couldn't be copied, so download them from monday.com and add them by hand: ${shown}${more > 0 ? ` and ${more} more` : ""}.`,
+        );
+      }
+      if (result.linkedFiles) {
+        next.push(
+          `${result.linkedFiles} ${result.linkedFiles === 1 ? "file was a link" : "files were links"} to Google Drive or similar rather than an upload, so ${result.linkedFiles === 1 ? "it wasn't" : "they weren't"} copied.`,
+        );
+      }
       if (result.truncated) {
         next.push(
           "The board has more items than one import can bring over, so only the first 5,000 came across.",
@@ -203,7 +241,7 @@ function MondayForm({
       }
       if (result.skippedColumns?.length) {
         next.push(
-          `These columns were left out because the CRM can't hold them yet: ${result.skippedColumns.join(", ")}. Subitems aren't imported either.`,
+          `These columns were left out because the CRM can't hold them yet: ${result.skippedColumns.join(", ")}.`,
         );
       }
       const hasNotes = next.length > 1;
@@ -211,6 +249,29 @@ function MondayForm({
       if (hasNotes) setNotes(next);
       else onDone();
     });
+  }
+
+  if (copying) {
+    return (
+      <div className="flex flex-col gap-3 px-6 py-6" role="status">
+        <p>
+          Copying files from monday.com… {copying.done} of {copying.total}
+        </p>
+        <div
+          aria-hidden
+          className="bg-muted h-1.5 overflow-hidden rounded-full"
+        >
+          <div
+            className="bg-primary h-full rounded-full transition-[width] duration-300"
+            style={{ width: `${(copying.done / copying.total) * 100}%` }}
+          />
+        </div>
+        <p className="caption-style text-subtle">
+          Keep this window open until it finishes. The board and its items are
+          already saved.
+        </p>
+      </div>
+    );
   }
 
   if (notes) {
@@ -268,7 +329,7 @@ function MondayForm({
             label="Board"
             htmlFor="monday-board"
             error={error ?? undefined}
-            hint="Groups, columns, status labels and their colours come across. Subitems, files and updates don't."
+            hint="Groups, columns, status labels with their colours, and uploaded files come across. Subitems and updates don't."
           >
             <Select value={boardId} onValueChange={setBoardId}>
               <SelectTrigger id="monday-board">

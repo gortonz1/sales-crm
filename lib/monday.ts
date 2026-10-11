@@ -54,11 +54,23 @@ export type ImportColumn = {
   width: number;
 };
 export type ImportGroup = { sourceId: string; name: string; color: string };
+export type ImportFile = {
+  columnSourceId: string;
+  assetId: string;
+  name: string;
+};
 export type ImportItem = {
   sourceId: string;
   name: string;
   groupSourceId: string;
   values: Record<string, string | number | boolean>;
+  files: ImportFile[];
+};
+export type MondayAsset = {
+  id: string;
+  name: string;
+  url: string | null;
+  size: number | null;
 };
 export type ImportBoard = {
   sourceId: string;
@@ -67,6 +79,7 @@ export type ImportBoard = {
   columns: ImportColumn[];
   items: ImportItem[];
   skippedColumns: string[];
+  linkedFiles: number;
   truncated: boolean;
 };
 
@@ -203,7 +216,6 @@ const SKIPPED_TYPES = new Set([
   "subtasks",
   "subitems",
   "button",
-  "file",
   "doc",
   "direct_doc",
 ]);
@@ -229,6 +241,8 @@ function columnType(mondayType: string): ColumnType | null {
       return "phone";
     case "link":
       return "link";
+    case "file":
+      return "file";
     default:
       return "text";
   }
@@ -323,6 +337,37 @@ function cellValue(
   }
 }
 
+function cellFiles(raw: MondayValue) {
+  const value = parseJson(raw.value);
+  const entries =
+    isRecord(value) && Array.isArray(value.files) ? value.files : [];
+  const assets: { assetId: string; name: string }[] = [];
+  let links = 0;
+  for (const entry of entries) {
+    if (!isRecord(entry)) continue;
+    const assetId = entry.assetId ?? entry.asset_id;
+    const name = typeof entry.name === "string" ? entry.name : "file";
+    if (
+      (typeof assetId === "number" || typeof assetId === "string") &&
+      /^\d+$/.test(String(assetId))
+    ) {
+      assets.push({ assetId: String(assetId), name });
+    } else {
+      links += 1;
+    }
+  }
+  if (!entries.length && raw.text) {
+    for (const match of raw.text.matchAll(/\/resources\/(\d+)\/([^,\s]+)/g)) {
+      let name = match[2];
+      try {
+        name = decodeURIComponent(name);
+      } catch {}
+      assets.push({ assetId: match[1], name });
+    }
+  }
+  return { assets, links };
+}
+
 const clip = (value: string, max: number) =>
   value.trim().slice(0, max) || "Untitled";
 
@@ -395,11 +440,24 @@ function convertBoard(
   }
   const knownGroups = new Set(groups.map((group) => group.sourceId));
 
+  let linkedFiles = 0;
   const converted = items.map((item) => {
     const values: ImportItem["values"] = {};
+    const files: ImportFile[] = [];
     for (const column of columns) {
       const raw = item.column_values.find((v) => v.id === column.sourceId);
       if (!raw) continue;
+      if (column.type === "file") {
+        const found = cellFiles(raw);
+        linkedFiles += found.links;
+        files.push(
+          ...found.assets.map((asset) => ({
+            ...asset,
+            columnSourceId: column.sourceId,
+          })),
+        );
+        continue;
+      }
       const value = cellValue(
         column.type,
         raw,
@@ -414,6 +472,7 @@ function convertBoard(
       groupSourceId:
         groupId && knownGroups.has(groupId) ? groupId : fallbackGroup,
       values,
+      files,
     };
   });
 
@@ -424,6 +483,32 @@ function convertBoard(
     columns,
     items: converted,
     skippedColumns,
+    linkedFiles,
     truncated,
   };
+}
+
+export async function fetchAssets(
+  token: string,
+  ids: string[],
+): Promise<MondayAsset[]> {
+  if (!ids.length) return [];
+  const data = await request<{
+    assets: {
+      id: string;
+      name: string;
+      public_url: string | null;
+      file_size: number | null;
+    }[];
+  }>(
+    token,
+    `query ($ids: [ID!]!) { assets(ids: $ids) { id name public_url file_size } }`,
+    { ids },
+  );
+  return data.assets.map((asset) => ({
+    id: String(asset.id),
+    name: asset.name,
+    url: asset.public_url,
+    size: asset.file_size,
+  }));
 }

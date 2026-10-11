@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { removeColumnFiles } from "@/lib/files";
+import { asFiles, removeColumnFiles } from "@/lib/files";
 import { createClient } from "@/lib/supabase/client";
 import {
   defaultOptions,
@@ -11,7 +11,9 @@ import {
   type Board,
   type BoardColumn,
   type ColumnType,
+  customValue,
   type CellValue,
+  type CustomRow,
   type CustomTarget,
 } from "@/lib/columns";
 import type { Option } from "@/lib/recruitment";
@@ -143,13 +145,26 @@ export function useBoardColumns(
 
 export async function saveCustomValue(
   target: CustomTarget,
-  rowId: string,
+  previous: CustomRow,
   columnId: string,
   value: CellValue,
 ) {
+  if (Array.isArray(value)) {
+    const now = value;
+    const was = asFiles(customValue(previous, columnId));
+    return createClient().rpc("update_custom_files", {
+      target,
+      row_id: previous.id,
+      column_id: columnId,
+      add_files: now.filter((file) => !was.some((old) => old.id === file.id)),
+      remove_ids: was
+        .filter((old) => !now.some((file) => file.id === old.id))
+        .map((old) => old.id),
+    });
+  }
   return createClient().rpc("set_custom_value", {
     target,
-    row_id: rowId,
+    row_id: previous.id,
     column_id: columnId,
     value,
   });
