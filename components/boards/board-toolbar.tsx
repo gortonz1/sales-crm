@@ -217,7 +217,7 @@ function RuleValue({
   value: string;
   onChange: (value: string) => void;
 }) {
-  if (column?.type === "status") {
+  if (column?.type === "status" || column?.type === "recruitment") {
     const options = columnOptions(column);
     return (
       <Select value={value || undefined} onValueChange={onChange}>
@@ -228,11 +228,13 @@ function RuleValue({
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               <span className="flex items-center gap-2">
-                <span
-                  aria-hidden
-                  className="size-2.5 rounded-[3px]"
-                  style={{ backgroundColor: option.color ?? "#6b6b6b" }}
-                />
+                {column.type === "status" && (
+                  <span
+                    aria-hidden
+                    className="size-2.5 rounded-[3px]"
+                    style={{ backgroundColor: option.color ?? "#6b6b6b" }}
+                  />
+                )}
                 {option.label}
               </span>
             </SelectItem>

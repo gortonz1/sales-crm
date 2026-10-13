@@ -4,6 +4,8 @@ import BoardView from "@/components/boards/board-view";
 import NoAccess from "@/components/leads/no-access";
 import { JOBS_SHOWN } from "@/lib/automations";
 import type { BoardItem } from "@/lib/boards";
+import type { Lookups } from "@/lib/columns";
+import { statusLabel } from "@/lib/recruitment";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = { params: Promise<{ id: string }> };
@@ -56,6 +58,7 @@ export default async function BoardPage({ params }: Props) {
     adminResult,
     automationsResult,
     jobsResult,
+    recruitmentsResult,
   ] = await Promise.all([
     supabase.from("lead_stages").select("id").limit(1),
     supabase
@@ -89,7 +92,21 @@ export default async function BoardPage({ params }: Props) {
       .eq("board_id", id)
       .order("created_at", { ascending: false })
       .limit(JOBS_SHOWN),
+    supabase
+      .from("recruitments")
+      .select("id, client, contact, status")
+      .order("client"),
   ]);
+
+  const lookups: Lookups = {
+    recruitment: (recruitmentsResult.data ?? []).map((role) => ({
+      value: role.id,
+      label: role.client,
+      hint: [role.contact, statusLabel(role.status)]
+        .filter((part): part is string => Boolean(part))
+        .join(" · "),
+    })),
+  };
 
   if (!stagesResult.data?.length) return <NoAccess />;
   if (!boardResult.data) notFound();
@@ -105,6 +122,7 @@ export default async function BoardPage({ params }: Props) {
       initialColumns={columnsResult.data ?? []}
       initialAutomations={automationsResult.data ?? []}
       initialJobs={jobsResult.data ?? []}
+      lookups={lookups}
       isAdmin={adminResult.data === true}
     />
   );

@@ -65,6 +65,7 @@ export function opsFor(column: BoardColumn | null): OpChoice[] {
     return [{ value: "contains", label: "contains", needsValue: true }];
   switch (column.type) {
     case "status":
+    case "recruitment":
       return [
         { value: "is", label: "is", needsValue: true },
         { value: "is_not", label: "is not", needsValue: true },
@@ -195,6 +196,13 @@ function sortKey(
         (option) => option.value === value,
       );
       return index === -1 ? null : index;
+    }
+    case "recruitment": {
+      const value = asText(raw);
+      const label = columnOptions(column).find(
+        (option) => option.value === value,
+      )?.label;
+      return label?.toLowerCase() ?? null;
     }
     case "number":
       return asNumber(raw);

@@ -20,6 +20,7 @@ import { asFiles } from "@/lib/files";
 import type { Json } from "@/lib/supabase/database.types";
 import { useColumns } from "./columns-provider";
 import FileCell from "./file-cell";
+import LookupCell from "./lookup-cell";
 
 export type CustomValue = CellValue;
 
@@ -36,9 +37,21 @@ export default function CustomCell({
   onCommit: (value: CustomValue) => void;
   onEditLabels?: () => void;
 }) {
-  const { notify } = useColumns();
+  const { notify, lookups } = useColumns();
   const label = column.label;
   switch (column.type) {
+    case "recruitment":
+      return (
+        <LookupCell
+          label={label}
+          value={asText(value)}
+          options={lookups?.recruitment ?? []}
+          placeholder="Search roles…"
+          emptyMessage="No roles on the Recruitment board yet."
+          href={(id) => `/recruitment?item=${id}`}
+          onCommit={onCommit}
+        />
+      );
     case "file":
       return (
         <FileCell

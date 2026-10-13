@@ -46,7 +46,12 @@ import {
   todayKey,
   useBoardViewSettings,
 } from "@/lib/board-view";
-import { withCustom, type BoardColumn } from "@/lib/columns";
+import {
+  withCustom,
+  withLookups,
+  type BoardColumn,
+  type Lookups,
+} from "@/lib/columns";
 import type { Json, TablesUpdate } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
@@ -69,6 +74,7 @@ export default function BoardView({
   initialColumns,
   initialAutomations,
   initialJobs,
+  lookups,
   isAdmin,
 }: {
   board: CustomBoard;
@@ -77,12 +83,14 @@ export default function BoardView({
   initialColumns: BoardColumn[];
   initialAutomations: Automation[];
   initialJobs: AutomationJob[];
+  lookups: Lookups;
   isAdmin: boolean;
 }) {
   const router = useRouter();
   const columnsApi = useBoardColumns("custom", initialColumns, board.id);
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
   const [name, setName] = useState(board.name);
+  const [itemWidth, setItemWidth] = useState(board.item_width);
   const [groups, setGroups] = useState(() => sortByPosition(initialGroups));
   const [items, setItems] = useState(initialItems);
   const [query, setQuery] = useState("");
@@ -97,7 +105,10 @@ export default function BoardView({
   const closeUndo = useCallback(() => setUndo(null), []);
 
   const [settings, updateSettings] = useBoardViewSettings(board.id);
-  const columns = columnsApi.columns;
+  const columns = useMemo(
+    () => withLookups(columnsApi.columns, lookups),
+    [columnsApi.columns, lookups],
+  );
   const onItemCustom = useCallback((id: string, custom: Json) => {
     setItems((current) =>
       current.map((item) => (item.id === id ? { ...item, custom } : item)),
@@ -350,6 +361,20 @@ export default function BoardView({
     }
   }
 
+  async function saveItemWidth(width: number) {
+    const previous = itemWidth;
+    setError(null);
+    setItemWidth(width);
+    const { error } = await createClient()
+      .from("boards")
+      .update({ item_width: width })
+      .eq("id", board.id);
+    if (error) {
+      setItemWidth(previous);
+      fail("resize the Item column", error.message);
+    }
+  }
+
   async function renameBoard(next: string) {
     const previous = name;
     setError(null);
@@ -398,7 +423,7 @@ export default function BoardView({
     : null;
 
   return (
-    <ColumnsProvider api={columnsApi} canEdit={isAdmin}>
+    <ColumnsProvider api={columnsApi} canEdit={isAdmin} lookups={lookups}>
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="shrink-0">
           <div className="flex items-center justify-between gap-2 px-4 py-[14px]">
@@ -578,6 +603,13 @@ export default function BoardView({
                     updateItem(id, { group_id: groupId })
                   }
                   onDeleteItem={deleteItem}
+                  itemWidth={itemWidth}
+                  onItemWidth={
+                    isAdmin
+                      ? (width, commit) =>
+                          commit ? saveItemWidth(width) : setItemWidth(width)
+                      : undefined
+                  }
                   onCustomChange={saveCustom}
                   pendingLabel={automations.pendingLabel}
                   onRename={() => setRenaming({ kind: "group", group })}

@@ -233,18 +233,21 @@ export type Database = {
           created_at: string;
           created_by: string | null;
           id: string;
+          item_width: number;
           monday_board_id: string | null;
           name: string;
           position: number;
           updated_at: string;
         };
         Insert: {
+          item_width?: number;
           monday_board_id?: string | null;
           name: string;
           position?: number;
         };
         Update: {
           deleted_at?: string | null;
+          item_width?: number;
           name?: string;
           position?: number;
         };

@@ -34,7 +34,8 @@ export type ColumnType =
   | "email"
   | "phone"
   | "link"
-  | "file";
+  | "file"
+  | "recruitment";
 
 export const LABEL_MAX = 60;
 
@@ -48,7 +49,29 @@ export const COLUMN_TYPES: { value: ColumnType; label: string }[] = [
   { value: "phone", label: "Phone" },
   { value: "link", label: "Link" },
   { value: "file", label: "Files" },
+  { value: "recruitment", label: "Recruitment role" },
 ];
+
+export type LookupOption = Option & { hint?: string };
+export type Lookups = { recruitment: LookupOption[] };
+
+export function withLookups(
+  columns: BoardColumn[],
+  lookups: Lookups | null,
+): BoardColumn[] {
+  if (!lookups) return columns;
+  return columns.map((column) =>
+    column.type === "recruitment"
+      ? {
+          ...column,
+          options: lookups.recruitment.map(({ value, label }) => ({
+            value,
+            label,
+          })),
+        }
+      : column,
+  );
+}
 
 export const typeLabel = (type: string) =>
   COLUMN_TYPES.find((t) => t.value === type)?.label ?? type;
@@ -63,6 +86,7 @@ const DEFAULT_WIDTHS: Record<ColumnType, number> = {
   phone: 9,
   link: 12,
   file: 10,
+  recruitment: 14,
 };
 
 export const defaultWidth = (type: ColumnType) => DEFAULT_WIDTHS[type];
@@ -72,6 +96,12 @@ export const WIDTH_MAX = 40;
 
 export const clampWidth = (width: number) =>
   Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, Math.round(width * 4) / 4));
+
+export const ITEM_WIDTH_DEFAULT = 16;
+export const ITEM_WIDTH_MIN = 6;
+
+export const clampItemWidth = (width: number) =>
+  Math.min(WIDTH_MAX, Math.max(ITEM_WIDTH_MIN, Math.round(width * 4) / 4));
 
 export const LABEL_COLORS = [
   "#16803c",

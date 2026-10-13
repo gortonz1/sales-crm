@@ -21,10 +21,12 @@ import {
 import CustomCell, { type CustomValue } from "./custom-cell";
 import { useColumns } from "./columns-provider";
 import {
-  COLUMN_TYPES,
+  ITEM_WIDTH_DEFAULT,
+  ITEM_WIDTH_MIN,
   LABEL_MAX,
   WIDTH_MAX,
   WIDTH_MIN,
+  clampItemWidth,
   clampWidth,
   customValue,
   defaultWidth,
@@ -40,6 +42,13 @@ import PlusIcon from "@/public/assets/images/_common/plus.svg";
 const DRAG_TYPE = "application/x-crm-column";
 const ADD_WIDTH = 3;
 
+export type PinnedColumn<Row> = {
+  label: string;
+  width: number;
+  render: (row: Row) => ReactNode;
+  onWidth?: (width: number, commit: boolean) => void;
+};
+
 export default function SheetTable<Row extends CustomRow>({
   rows,
   pinned,
@@ -51,7 +60,7 @@ export default function SheetTable<Row extends CustomRow>({
   rowClassName,
 }: {
   rows: Row[];
-  pinned: { label: string; width: number; render: (row: Row) => ReactNode };
+  pinned: PinnedColumn<Row>;
   renderBuiltIn: (field: string, row: Row) => ReactNode;
   onCustomChange: (row: Row, column: BoardColumn, value: CustomValue) => void;
   pendingLabel?: (row: Row, column: BoardColumn) => string | null;
@@ -65,6 +74,7 @@ export default function SheetTable<Row extends CustomRow>({
     pinned.width +
     (canEdit ? ADD_WIDTH : 0) +
     columns.reduce((sum, column) => sum + column.width, 0);
+  const onPinnedWidth = pinned.onWidth;
 
   return (
     <table
@@ -88,6 +98,18 @@ export default function SheetTable<Row extends CustomRow>({
         <tr>
           <th className="bg-card border-line-strong caption-style text-subtle sticky left-0 z-[2] h-9 border-r border-b px-2.5 text-left font-normal">
             {pinned.label}
+            {canEdit && onPinnedWidth && (
+              <ResizeHandle
+                label={pinned.label}
+                width={pinned.width}
+                min={ITEM_WIDTH_MIN}
+                max={WIDTH_MAX}
+                clamp={clampItemWidth}
+                defaultWidth={ITEM_WIDTH_DEFAULT}
+                onPreview={(width) => onPinnedWidth(width, false)}
+                onCommit={(width) => onPinnedWidth(width, true)}
+              />
+            )}
           </th>
           {columns.map((column, index) => (
             <ColumnHeader
@@ -173,7 +195,7 @@ function ColumnHeader({
   index: number;
   count: number;
 }) {
-  const { api, canEdit, editLabels, confirmDelete } = useColumns();
+  const { api, canEdit, editLabels, confirmDelete, types } = useColumns();
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -311,7 +333,7 @@ function ColumnHeader({
                     api.changeType(column, type as ColumnType)
                   }
                 >
-                  {COLUMN_TYPES.map((type) => (
+                  {types.map((type) => (
                     <DropdownMenuRadioItem key={type.value} value={type.value}>
                       {type.label}
                     </DropdownMenuRadioItem>
@@ -335,15 +357,41 @@ function ColumnHeader({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-      <ResizeHandle column={column} />
+      <ResizeHandle
+        label={column.label}
+        width={column.width}
+        min={WIDTH_MIN}
+        max={WIDTH_MAX}
+        clamp={clampWidth}
+        defaultWidth={defaultWidth(column.type as ColumnType)}
+        onPreview={(width) => api.previewWidth(column.id, width)}
+        onCommit={(width) => api.setWidth(column.id, width)}
+      />
     </th>
   );
 }
 
 const KEYBOARD_STEP = 0.5;
 
-function ResizeHandle({ column }: { column: BoardColumn }) {
-  const { api } = useColumns();
+function ResizeHandle({
+  label,
+  width,
+  min,
+  max,
+  clamp,
+  defaultWidth: resetWidth,
+  onPreview,
+  onCommit,
+}: {
+  label: string;
+  width: number;
+  min: number;
+  max: number;
+  clamp: (width: number) => number;
+  defaultWidth: number;
+  onPreview: (width: number) => void;
+  onCommit: (width: number) => void;
+}) {
   const drag = useRef<{
     startX: number;
     startWidth: number;
@@ -361,22 +409,22 @@ function ResizeHandle({ column }: { column: BoardColumn }) {
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = {
       startX: event.clientX,
-      startWidth: column.width,
+      startWidth: width,
       fontSize,
-      latest: column.width,
+      latest: width,
     };
     document.documentElement.dataset.columnResizing = "";
   }
 
   function onPointerMove(event: PointerEvent<HTMLSpanElement>) {
     if (!drag.current) return;
-    const next = clampWidth(
+    const next = clamp(
       drag.current.startWidth +
         (event.clientX - drag.current.startX) / drag.current.fontSize,
     );
     if (next === drag.current.latest) return;
     drag.current.latest = next;
-    api.previewWidth(column.id, next);
+    onPreview(next);
   }
 
   function onPointerEnd(event: PointerEvent<HTMLSpanElement>) {
@@ -386,31 +434,31 @@ function ResizeHandle({ column }: { column: BoardColumn }) {
     if (event.currentTarget.hasPointerCapture(event.pointerId))
       event.currentTarget.releasePointerCapture(event.pointerId);
     delete document.documentElement.dataset.columnResizing;
-    if (latest !== startWidth) api.setWidth(column.id, latest);
+    if (latest !== startWidth) onCommit(latest);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLSpanElement>) {
     const next: Record<string, number> = {
-      ArrowLeft: column.width - KEYBOARD_STEP,
-      ArrowRight: column.width + KEYBOARD_STEP,
-      Home: WIDTH_MIN,
-      End: WIDTH_MAX,
+      ArrowLeft: width - KEYBOARD_STEP,
+      ArrowRight: width + KEYBOARD_STEP,
+      Home: min,
+      End: max,
     };
     if (!(event.key in next)) return;
     event.preventDefault();
     event.stopPropagation();
-    const width = clampWidth(next[event.key]);
-    if (width !== column.width) api.setWidth(column.id, width);
+    const target = clamp(next[event.key]);
+    if (target !== width) onCommit(target);
   }
 
   return (
     <span
       role="separator"
       aria-orientation="vertical"
-      aria-label={`Resize ${column.label}`}
-      aria-valuemin={WIDTH_MIN}
-      aria-valuemax={WIDTH_MAX}
-      aria-valuenow={column.width}
+      aria-label={`Resize ${label}`}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={width}
       tabIndex={0}
       draggable={false}
       onDragStart={(event) => {
@@ -425,7 +473,7 @@ function ResizeHandle({ column }: { column: BoardColumn }) {
       onClick={(event) => event.stopPropagation()}
       onDoubleClick={(event) => {
         event.stopPropagation();
-        api.setWidth(column.id, defaultWidth(column.type as ColumnType));
+        if (resetWidth !== width) onCommit(resetWidth);
       }}
       className="group/resize focus-visible:ring-ring/60 absolute inset-y-0 -right-1 z-[2] w-2 cursor-col-resize touch-none rounded-sm outline-none select-none focus-visible:ring-2"
     >
@@ -467,7 +515,7 @@ function RenameInput({
 }
 
 function AddColumnMenu() {
-  const { api } = useColumns();
+  const { api, types } = useColumns();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -481,7 +529,7 @@ function AddColumnMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Add column</DropdownMenuLabel>
-        {COLUMN_TYPES.map((type) => (
+        {types.map((type) => (
           <DropdownMenuItem
             key={type.value}
             onSelect={() => api.add(type.value)}

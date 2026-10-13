@@ -48,7 +48,7 @@ export function matchesItemSearch(
     const value = asText(customValue(item, column.id));
     if (value === null) return false;
     const shown =
-      column.type === "status"
+      column.type === "status" || column.type === "recruitment"
         ? (columnOptions(column).find((option) => option.value === value)
             ?.label ?? "")
         : value;
