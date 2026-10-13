@@ -36,6 +36,8 @@ export type ColumnType =
   | "link"
   | "file";
 
+export const LABEL_MAX = 60;
+
 export const COLUMN_TYPES: { value: ColumnType; label: string }[] = [
   { value: "status", label: "Status" },
   { value: "text", label: "Text" },

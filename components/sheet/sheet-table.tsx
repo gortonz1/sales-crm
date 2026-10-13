@@ -15,6 +15,7 @@ import CustomCell, { type CustomValue } from "./custom-cell";
 import { useColumns } from "./columns-provider";
 import {
   COLUMN_TYPES,
+  LABEL_MAX,
   customValue,
   typeLabel,
   type BoardColumn,
@@ -307,7 +308,7 @@ function RenameInput({
       aria-label="Column name"
       autoFocus
       value={draft}
-      maxLength={60}
+      maxLength={LABEL_MAX}
       onFocus={(event) => event.currentTarget.select()}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={() => onDone(draft.trim())}
