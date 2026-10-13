@@ -1,6 +1,13 @@
 "use client";
 
-import { useRef, useState, type DragEvent, type ReactNode } from "react";
+import {
+  useRef,
+  useState,
+  type DragEvent,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +23,11 @@ import { useColumns } from "./columns-provider";
 import {
   COLUMN_TYPES,
   LABEL_MAX,
+  WIDTH_MAX,
+  WIDTH_MIN,
+  clampWidth,
   customValue,
+  defaultWidth,
   typeLabel,
   type BoardColumn,
   type ColumnType,
@@ -324,7 +335,105 @@ function ColumnHeader({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+      <ResizeHandle column={column} />
     </th>
+  );
+}
+
+const KEYBOARD_STEP = 0.5;
+
+function ResizeHandle({ column }: { column: BoardColumn }) {
+  const { api } = useColumns();
+  const drag = useRef<{
+    startX: number;
+    startWidth: number;
+    fontSize: number;
+    latest: number;
+  } | null>(null);
+
+  function onPointerDown(event: PointerEvent<HTMLSpanElement>) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const table = event.currentTarget.closest("table");
+    const fontSize =
+      (table && parseFloat(getComputedStyle(table).fontSize)) || 13;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    drag.current = {
+      startX: event.clientX,
+      startWidth: column.width,
+      fontSize,
+      latest: column.width,
+    };
+    document.documentElement.dataset.columnResizing = "";
+  }
+
+  function onPointerMove(event: PointerEvent<HTMLSpanElement>) {
+    if (!drag.current) return;
+    const next = clampWidth(
+      drag.current.startWidth +
+        (event.clientX - drag.current.startX) / drag.current.fontSize,
+    );
+    if (next === drag.current.latest) return;
+    drag.current.latest = next;
+    api.previewWidth(column.id, next);
+  }
+
+  function onPointerEnd(event: PointerEvent<HTMLSpanElement>) {
+    if (!drag.current) return;
+    const { latest, startWidth } = drag.current;
+    drag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    delete document.documentElement.dataset.columnResizing;
+    if (latest !== startWidth) api.setWidth(column.id, latest);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLSpanElement>) {
+    const next: Record<string, number> = {
+      ArrowLeft: column.width - KEYBOARD_STEP,
+      ArrowRight: column.width + KEYBOARD_STEP,
+      Home: WIDTH_MIN,
+      End: WIDTH_MAX,
+    };
+    if (!(event.key in next)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const width = clampWidth(next[event.key]);
+    if (width !== column.width) api.setWidth(column.id, width);
+  }
+
+  return (
+    <span
+      role="separator"
+      aria-orientation="vertical"
+      aria-label={`Resize ${column.label}`}
+      aria-valuemin={WIDTH_MIN}
+      aria-valuemax={WIDTH_MAX}
+      aria-valuenow={column.width}
+      tabIndex={0}
+      draggable={false}
+      onDragStart={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+      onKeyDown={onKeyDown}
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => {
+        event.stopPropagation();
+        api.setWidth(column.id, defaultWidth(column.type as ColumnType));
+      }}
+      className="group/resize focus-visible:ring-ring/60 absolute inset-y-0 -right-1 z-[2] w-2 cursor-col-resize touch-none rounded-sm outline-none select-none focus-visible:ring-2"
+    >
+      <span
+        aria-hidden
+        className="ease-power3-out group-hover/resize:bg-line-strong group-active/resize:bg-ring group-focus-visible/resize:bg-ring absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-transparent transition-[background-color] duration-150"
+      />
+    </span>
   );
 }
 

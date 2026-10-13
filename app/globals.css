@@ -64,7 +64,8 @@
 }
 
 @theme static {
-  --shadow-overlay: 0px 16px 40px 0px var(--shadow), 0px 0px 0px 1px var(--edge);
+  --shadow-overlay:
+    0px 16px 40px 0px var(--shadow), 0px 0px 0px 1px var(--edge);
 
   --ease-power1-in: cubic-bezier(0.11, 0, 0.5, 0);
   --ease-power1-out: cubic-bezier(0.5, 1, 0.89, 1);
@@ -369,7 +370,9 @@ select:autofill {
 }
 
 html[data-sidebar-resizing],
-html[data-sidebar-resizing] * {
+html[data-sidebar-resizing] *,
+html[data-column-resizing],
+html[data-column-resizing] * {
   cursor: col-resize !important;
   user-select: none !important;
 }

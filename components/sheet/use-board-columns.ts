@@ -136,6 +136,14 @@ export function useBoardColumns(
     }
   }
 
+  function previewWidth(id: string, width: number) {
+    setColumns((current) =>
+      current.map((column) =>
+        column.id === id ? { ...column, width } : column,
+      ),
+    );
+  }
+
   function changeType(column: BoardColumn, type: ColumnType) {
     const hasOptions =
       Array.isArray(column.options) && column.options.length > 0;
@@ -163,6 +171,8 @@ export function useBoardColumns(
     changeType,
     setOptions: (id: string, options: Option[]) => update(id, { options }),
     setHidden: (id: string, hidden: boolean) => update(id, { hidden }),
+    previewWidth,
+    setWidth: (id: string, width: number) => update(id, { width }),
   };
 }
 
