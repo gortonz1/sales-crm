@@ -34,6 +34,7 @@ export default function SheetTable<Row extends CustomRow>({
   pinned,
   renderBuiltIn,
   onCustomChange,
+  pendingLabel,
   accent,
   footer,
   rowClassName,
@@ -42,6 +43,7 @@ export default function SheetTable<Row extends CustomRow>({
   pinned: { label: string; width: number; render: (row: Row) => ReactNode };
   renderBuiltIn: (field: string, row: Row) => ReactNode;
   onCustomChange: (row: Row, column: BoardColumn, value: CustomValue) => void;
+  pendingLabel?: (row: Row, column: BoardColumn) => string | null;
   accent?: string;
   footer?: ReactNode;
   rowClassName?: (row: Row) => string | undefined;
@@ -104,6 +106,8 @@ export default function SheetTable<Row extends CustomRow>({
               >
                 {column.field ? (
                   renderBuiltIn(column.field, row)
+                ) : pendingLabel?.(row, column) ? (
+                  <PendingCell label={pendingLabel(row, column) ?? ""} />
                 ) : (
                   <CustomCell
                     column={column}
@@ -134,6 +138,18 @@ export default function SheetTable<Row extends CustomRow>({
         )}
       </tbody>
     </table>
+  );
+}
+
+function PendingCell({ label }: { label: string }) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="caption-style text-subtle bg-overlay/[0.03] flex h-9 w-full min-w-0 items-center px-2.5"
+    >
+      <span className="animate-pulse truncate">{label}</span>
+    </div>
   );
 }
 
