@@ -4,28 +4,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { runAutomations } from "@/app/(app)/boards/automation-actions";
 import {
-  AUTOMATION_NAME_MAX,
   JOBS_SHOWN,
   MAX_RUN_ROUNDS,
-  defaultAutomationName,
   isOpen,
   pendingCells,
   sortJobs,
   type Automation,
   type AutomationJob,
 } from "@/lib/automations";
-import type { BoardColumn } from "@/lib/columns";
 import { createClient } from "@/lib/supabase/client";
-import type { Json, TablesUpdate } from "@/lib/supabase/database.types";
+import type {
+  Json,
+  TablesInsert,
+  TablesUpdate,
+} from "@/lib/supabase/database.types";
 
 export type AutomationsApi = ReturnType<typeof useAutomations>;
 
-export type NewAutomation = {
-  triggerColumnId: string;
-  fields: string[];
-  overwrite: boolean;
-  name?: string;
-};
+export type AutomationDraft = Pick<
+  TablesInsert<"automations">,
+  "name" | "trigger" | "trigger_column_id" | "action" | "config"
+>;
 
 function keepRecent(jobs: AutomationJob[]) {
   const sorted = sortJobs(jobs);
@@ -36,13 +35,11 @@ function keepRecent(jobs: AutomationJob[]) {
 
 export function useAutomations({
   boardId,
-  columns,
   initialAutomations,
   initialJobs,
   onItemCustom,
 }: {
   boardId: string;
-  columns: BoardColumn[];
   initialAutomations: Automation[];
   initialJobs: AutomationJob[];
   onItemCustom: (itemId: string, custom: Json) => void;
@@ -160,22 +157,11 @@ export function useAutomations({
     };
   }, [boardId, upsertJob]);
 
-  async function add(draft: NewAutomation) {
+  async function add(values: AutomationDraft) {
     setError(null);
-    const name = (
-      draft.name?.trim() ||
-      defaultAutomationName(columns, draft.triggerColumnId, draft.fields)
-    ).slice(0, AUTOMATION_NAME_MAX);
     const { data, error } = await createClient()
       .from("automations")
-      .insert({
-        board_id: boardId,
-        name,
-        trigger: "file_added",
-        trigger_column_id: draft.triggerColumnId,
-        action: "ai_extract",
-        config: { fields: draft.fields, overwrite: draft.overwrite },
-      })
+      .insert({ ...values, board_id: boardId })
       .select()
       .single();
     if (error || !data) {
@@ -278,6 +264,6 @@ export function useAutomations({
     retry,
     kick,
     pendingLabel: (itemId: string, columnId: string) =>
-      pending.get(itemId)?.has(columnId) ? "Extracting…" : null,
+      pending.get(itemId)?.get(columnId) ?? null,
   };
 }

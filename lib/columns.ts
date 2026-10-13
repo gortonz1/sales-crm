@@ -67,6 +67,12 @@ const DEFAULT_WIDTHS: Record<ColumnType, number> = {
 
 export const defaultWidth = (type: ColumnType) => DEFAULT_WIDTHS[type];
 
+export const WIDTH_MIN = 4;
+export const WIDTH_MAX = 40;
+
+export const clampWidth = (width: number) =>
+  Math.min(WIDTH_MAX, Math.max(WIDTH_MIN, Math.round(width * 4) / 4));
+
 export const LABEL_COLORS = [
   "#16803c",
   "#65d38a",

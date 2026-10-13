@@ -5,6 +5,7 @@ import {
   processAutomationJobs,
   type ProcessedJob,
 } from "@/lib/automation-runner";
+import { emailConfigured, smsConfigured } from "@/lib/messaging";
 import { createClient } from "@/lib/supabase/server";
 
 const isUuid = (value: unknown): value is string =>
@@ -33,6 +34,8 @@ export async function runAutomations(
   }
 }
 
-export async function automationsReady(): Promise<{ ai: boolean }> {
-  return { ai: aiConfigured() };
+export type Readiness = { ai: boolean; email: boolean; sms: boolean };
+
+export async function automationsReady(): Promise<Readiness> {
+  return { ai: aiConfigured(), email: emailConfigured(), sms: smsConfigured() };
 }

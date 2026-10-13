@@ -1,22 +1,43 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  ExtractError,
-  extractFields,
-  slugKey,
-  type ExtractField,
-} from "@/lib/ai-extract";
+import { extractFields, slugKey, type ExtractField } from "@/lib/ai-extract";
+import { AutomationError } from "@/lib/automation-error";
 import {
   canExtractInto,
+  canSet,
   extractConfig,
   jobFile,
   JOBS_PER_RUN,
+  messageConfig,
+  renderTemplate,
+  setCellConfig,
+  SMS_MAX_CHARS,
+  todayPlus,
+  type Automation,
   type AutomationJob,
+  type Recipient,
 } from "@/lib/automations";
-import { customValue, type BoardColumn } from "@/lib/columns";
+import {
+  asDate,
+  asNumber,
+  asText,
+  columnOptions,
+  customValue,
+  type BoardColumn,
+} from "@/lib/columns";
 import { asFiles, FILES_BUCKET } from "@/lib/files";
+import { normaliseEmail, sendEmail, sendSms, toE164 } from "@/lib/messaging";
 import type { Database, Json } from "@/lib/supabase/database.types";
 
 type Supabase = SupabaseClient<Database>;
+
+type Context = {
+  automation: Automation;
+  item: Database["public"]["Tables"]["board_items"]["Row"];
+  columns: BoardColumn[];
+  boardName: string;
+};
+
+type JobResult = { outcome: Record<string, Json>; custom: Json | null };
 
 export type ProcessedJob = {
   jobId: string;
@@ -29,8 +50,11 @@ export type ProcessedJob = {
 
 export type RunOutcome = { processed: ProcessedJob[]; remaining: number };
 
-async function loadContext(supabase: Supabase, job: AutomationJob) {
-  const [automation, item, columns] = await Promise.all([
+async function loadContext(
+  supabase: Supabase,
+  job: AutomationJob,
+): Promise<Context> {
+  const [automation, item, columns, board] = await Promise.all([
     supabase
       .from("automations")
       .select("*")
@@ -46,12 +70,14 @@ async function loadContext(supabase: Supabase, job: AutomationJob) {
       .select("*")
       .eq("board_id", job.board_id)
       .is("deleted_at", null),
+    supabase.from("boards").select("name").eq("id", job.board_id).maybeSingle(),
   ]);
-  if (!automation.data) throw new ExtractError("The automation was deleted.");
+  if (!automation.data)
+    throw new AutomationError("The automation was deleted.");
   if (!item.data || item.data.deleted_at)
-    throw new ExtractError("The item was deleted.");
+    throw new AutomationError("The item was deleted.");
   if (columns.error)
-    throw new ExtractError(
+    throw new AutomationError(
       `Couldn't read the columns: ${columns.error.message}`,
       true,
     );
@@ -59,6 +85,7 @@ async function loadContext(supabase: Supabase, job: AutomationJob) {
     automation: automation.data,
     item: item.data,
     columns: columns.data ?? [],
+    boardName: board.data?.name ?? "the board",
   };
 }
 
@@ -67,26 +94,48 @@ async function download(supabase: Supabase, path: string) {
     .from(FILES_BUCKET)
     .download(path);
   if (error || !data)
-    throw new ExtractError(
+    throw new AutomationError(
       `Couldn't download the file: ${error?.message ?? "no response"}`,
       true,
     );
   return Buffer.from(await data.arrayBuffer());
 }
 
-async function runJob(supabase: Supabase, job: AutomationJob) {
-  const { automation, item, columns } = await loadContext(supabase, job);
+async function writeCell(
+  supabase: Supabase,
+  job: AutomationJob,
+  column: BoardColumn,
+  value: Json,
+) {
+  const { data, error } = await supabase.rpc("automation_set_cell", {
+    job_id: job.id,
+    column_id: column.id,
+    value,
+  });
+  if (error)
+    throw new AutomationError(
+      `Couldn't save ${column.label}: ${error.message}`,
+      true,
+    );
+  return data;
+}
+
+async function runExtract(
+  supabase: Supabase,
+  job: AutomationJob,
+  { automation, item, columns }: Context,
+): Promise<JobResult> {
   const wanted = jobFile(job);
-  if (!wanted) throw new ExtractError("The job has no file to read.");
+  if (!wanted) throw new AutomationError("The job has no file to read.");
   const trigger = columns.find(
     (column) => column.id === automation.trigger_column_id,
   );
-  if (!trigger) throw new ExtractError("The trigger column was deleted.");
+  if (!trigger) throw new AutomationError("The trigger column was deleted.");
   const file = asFiles(customValue(item, trigger.id)).find(
     (entry) => entry.id === wanted.id,
   );
   if (!file)
-    throw new ExtractError(`${wanted.name} was removed from the item.`);
+    throw new AutomationError(`${wanted.name} was removed from the item.`);
 
   const { fields, overwrite } = extractConfig(automation);
   const skipped: string[] = [];
@@ -100,10 +149,7 @@ async function runJob(supabase: Supabase, job: AutomationJob) {
   }
   if (!targets.length) {
     return {
-      filled: [],
-      empty: [],
-      skipped,
-      file: file.name,
+      outcome: { filled: [], empty: [], skipped, file: file.name },
       custom: item.custom,
     };
   }
@@ -124,28 +170,145 @@ async function runJob(supabase: Supabase, job: AutomationJob) {
   for (const column of targets) {
     const value = extracted.values.get(column.id);
     if (value === undefined || value === null) continue;
-    const { data, error } = await supabase.rpc("set_custom_value", {
-      target: "board_items",
-      row_id: item.id,
-      column_id: column.id,
-      value,
-    });
-    if (error)
-      throw new ExtractError(
-        `Couldn't save ${column.label}: ${error.message}`,
-        true,
-      );
-    custom = data;
+    custom = await writeCell(supabase, job, column, value);
     filled.push({ column_id: column.id, value });
   }
   return {
-    filled,
-    empty: extracted.empty,
-    skipped,
-    file: file.name,
-    model: extracted.model,
+    outcome: {
+      filled,
+      empty: extracted.empty,
+      skipped,
+      file: file.name,
+      model: extracted.model,
+    },
     custom,
   };
+}
+
+function cellValue(column: BoardColumn, context: Context): Json {
+  const { mode, value, offsetDays } = setCellConfig(context.automation);
+  if (mode === "clear") return null;
+  if (mode === "today") return todayPlus(offsetDays);
+  switch (column.type) {
+    case "status": {
+      const text = asText(value);
+      const option = columnOptions(column).find(
+        (entry) => entry.value === text,
+      );
+      if (!option)
+        throw new AutomationError(
+          `The label to set on ${column.label} no longer exists.`,
+        );
+      return option.value;
+    }
+    case "checkbox":
+      return value === true ? true : null;
+    case "number": {
+      const n = asNumber(value);
+      if (n === null)
+        throw new AutomationError(
+          `The value for ${column.label} isn't a number.`,
+        );
+      return n;
+    }
+    case "date": {
+      const date = asDate(value);
+      if (!date)
+        throw new AutomationError(
+          `The value for ${column.label} isn't a date.`,
+        );
+      return date;
+    }
+    default: {
+      const text = asText(value);
+      if (text === null)
+        throw new AutomationError(
+          `There's no value to set on ${column.label}.`,
+        );
+      return renderTemplate(text, context).trim() || null;
+    }
+  }
+}
+
+async function runSetCell(
+  supabase: Supabase,
+  job: AutomationJob,
+  context: Context,
+): Promise<JobResult> {
+  const { columnId } = setCellConfig(context.automation);
+  const column = context.columns.find((entry) => entry.id === columnId);
+  if (!column || !canSet(column))
+    throw new AutomationError("The column to set was deleted.");
+  if (column.id === context.automation.trigger_column_id)
+    throw new AutomationError("A rule can't set the column that triggers it.");
+  const value = cellValue(column, context);
+  const custom = await writeCell(supabase, job, column, value);
+  return { outcome: { column_id: column.id, value }, custom };
+}
+
+function recipientFor(
+  kind: "email" | "sms",
+  recipient: Recipient | null,
+  { item, columns }: Context,
+) {
+  if (!recipient)
+    throw new AutomationError("The automation has nobody to send to.");
+  let raw = "";
+  let label = "The recipient";
+  if (recipient.kind === "fixed") raw = recipient.value;
+  else {
+    const column = columns.find((entry) => entry.id === recipient.columnId);
+    if (!column) throw new AutomationError("The recipient column was deleted.");
+    label = column.label;
+    raw = asText(customValue(item, column.id)) ?? "";
+  }
+  if (!raw.trim()) throw new AutomationError(`${label} is empty on this item.`);
+  const value = kind === "email" ? normaliseEmail(raw) : toE164(raw);
+  if (!value)
+    throw new AutomationError(
+      `“${raw.trim()}” isn't a valid ${kind === "email" ? "email address" : "phone number"}.`,
+    );
+  return value;
+}
+
+async function runEmail(context: Context): Promise<JobResult> {
+  const config = messageConfig(context.automation);
+  const to = recipientFor("email", config.to, context);
+  const subject =
+    renderTemplate(config.subject, context).trim() || context.boardName;
+  const text = renderTemplate(config.body, context).trim();
+  if (!text) throw new AutomationError("The email came out empty.");
+  const { id } = await sendEmail({ to, subject, text });
+  return { outcome: { to, subject, provider_id: id }, custom: null };
+}
+
+async function runSms(context: Context): Promise<JobResult> {
+  const config = messageConfig(context.automation);
+  const to = recipientFor("sms", config.to, context);
+  const body = renderTemplate(config.body, context)
+    .trim()
+    .slice(0, SMS_MAX_CHARS);
+  if (!body) throw new AutomationError("The text message came out empty.");
+  const { id } = await sendSms({ to, body });
+  return { outcome: { to, provider_id: id }, custom: null };
+}
+
+async function runJob(supabase: Supabase, job: AutomationJob) {
+  const context = await loadContext(supabase, job);
+  switch (context.automation.action) {
+    case "ai_extract":
+      return runExtract(supabase, job, context);
+    case "set_cell":
+      return runSetCell(supabase, job, context);
+    case "send_email":
+      return runEmail(context);
+    case "send_sms":
+      return runSms(context);
+    default:
+      throw new AutomationError(
+        `Unknown action “${context.automation.action}”.`,
+      );
+  }
 }
 
 export async function processAutomationJobs(
@@ -162,7 +325,7 @@ export async function processAutomationJobs(
   const processed: ProcessedJob[] = await Promise.all(
     (jobs ?? []).map(async (job): Promise<ProcessedJob> => {
       try {
-        const { custom, ...outcome } = await runJob(supabase, job);
+        const { outcome, custom } = await runJob(supabase, job);
         await supabase.rpc("finish_automation_job", {
           job_id: job.id,
           ok: true,
@@ -177,7 +340,7 @@ export async function processAutomationJobs(
           custom,
         };
       } catch (caught) {
-        const retry = caught instanceof ExtractError && caught.retry;
+        const retry = caught instanceof AutomationError && caught.retry;
         const message =
           caught instanceof Error ? caught.message : "Automation failed.";
         await supabase.rpc("finish_automation_job", {
