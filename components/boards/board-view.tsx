@@ -367,7 +367,7 @@ export default function BoardView({
     : null;
 
   return (
-    <ColumnsProvider api={columnsApi}>
+    <ColumnsProvider api={columnsApi} canEdit={isAdmin}>
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="shrink-0">
           <div className="flex items-center justify-between gap-2 px-4 py-[14px]">
@@ -494,10 +494,14 @@ export default function BoardView({
               onMove={(item, column, value) =>
                 saveCustom(item.id, column.id, value)
               }
-              onAddStatusColumn={async () => {
-                const added = await columnsApi.add("status");
-                if (added) updateSettings({ kanbanField: added.id });
-              }}
+              onAddStatusColumn={
+                isAdmin
+                  ? async () => {
+                      const added = await columnsApi.add("status");
+                      if (added) updateSettings({ kanbanField: added.id });
+                    }
+                  : undefined
+              }
             />
           </div>
         ) : (

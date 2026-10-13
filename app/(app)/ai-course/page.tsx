@@ -11,19 +11,21 @@ export const metadata: Metadata = {
 
 export default async function AiCoursePage() {
   const supabase = await createClient();
-  const [stagesResult, leadsResult, columnsResult] = await Promise.all([
-    supabase.from("lead_stages").select("*").order("position"),
-    supabase
-      .from("leads")
-      .select("*")
-      .eq("enquiry_type", "ai-level-4")
-      .order("submitted_at", { ascending: false }),
-    supabase
-      .from("board_columns")
-      .select("*")
-      .eq("board", "ai-enquiries")
-      .order("position"),
-  ]);
+  const [stagesResult, leadsResult, columnsResult, adminResult] =
+    await Promise.all([
+      supabase.from("lead_stages").select("*").order("position"),
+      supabase
+        .from("leads")
+        .select("*")
+        .eq("enquiry_type", "ai-level-4")
+        .order("submitted_at", { ascending: false }),
+      supabase
+        .from("board_columns")
+        .select("*")
+        .eq("board", "ai-enquiries")
+        .order("position"),
+      supabase.rpc("crm_is_admin"),
+    ]);
 
   const stages = stagesResult.data ?? [];
   if (stages.length === 0) return <NoAccess />;
@@ -48,6 +50,7 @@ export default async function AiCoursePage() {
       initialEvents={eventsResult.data ?? []}
       board="ai-enquiries"
       initialColumns={columnsResult.data ?? []}
+      isAdmin={adminResult.data === true}
       title="AI in Marketing Level 4"
       defaultFilter={ALL}
       subnav={<AiCourseSubnav current="/ai-course" />}

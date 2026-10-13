@@ -58,7 +58,7 @@ export default function BoardKanban({
   field: string | null;
   onFieldChange: (field: string) => void;
   onMove: (item: BoardItem, column: BoardColumn, value: string | null) => void;
-  onAddStatusColumn: () => void;
+  onAddStatusColumn?: () => void;
 }) {
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const statusColumns = columns.filter((column) => column.type === "status");
@@ -69,12 +69,16 @@ export default function BoardKanban({
     return (
       <div className="flex flex-col items-start gap-3 p-4">
         <p className="text-soft max-w-[32em]">
-          Kanban lays items out by a Status column. Add one to this board to use
-          it.
+          Kanban lays items out by a Status column.{" "}
+          {onAddStatusColumn
+            ? "Add one to this board to use it."
+            : "Ask an admin to add one to this board to use it."}
         </p>
-        <Button variant="secondary" size="sm" onClick={onAddStatusColumn}>
-          Add a Status column
-        </Button>
+        {onAddStatusColumn && (
+          <Button variant="secondary" size="sm" onClick={onAddStatusColumn}>
+            Add a Status column
+          </Button>
+        )}
       </div>
     );
   }

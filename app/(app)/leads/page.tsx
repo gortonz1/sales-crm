@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Website leads · Sales CRM" };
 
 export default async function LeadsPage() {
   const supabase = await createClient();
-  const [stagesResult, leadsResult, eventsResult, columnsResult] =
+  const [stagesResult, leadsResult, eventsResult, columnsResult, adminResult] =
     await Promise.all([
       supabase.from("lead_stages").select("*").order("position"),
       supabase
@@ -24,6 +24,7 @@ export default async function LeadsPage() {
         .select("*")
         .eq("board", "leads")
         .order("position"),
+      supabase.rpc("crm_is_admin"),
     ]);
 
   const stages = stagesResult.data ?? [];
@@ -36,6 +37,7 @@ export default async function LeadsPage() {
       initialEvents={eventsResult.data ?? []}
       initialColumns={columnsResult.data ?? []}
       canAdd
+      isAdmin={adminResult.data === true}
     />
   );
 }

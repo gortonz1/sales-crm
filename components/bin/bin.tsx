@@ -167,7 +167,8 @@ export default function Bin({
         ) : (
           <ul className="border-line-strong bg-card divide-line-strong mx-auto flex max-w-[56em] flex-col divide-y rounded-xl border">
             {entries.map((entry) => {
-              const canRestore = entry.kind !== "board" || isAdmin;
+              const canRestore =
+                isAdmin || (entry.kind !== "board" && entry.kind !== "column");
               return (
                 <li
                   key={`${entry.kind}-${entry.id}`}
@@ -201,7 +202,7 @@ export default function Bin({
                       title={
                         canRestore
                           ? undefined
-                          : "Only admins can restore boards"
+                          : "Only admins can restore boards and columns"
                       }
                       onClick={() => restore(entry)}
                     >

@@ -34,7 +34,7 @@ export default function CustomCell({
   rowId: string;
   value: Json;
   onCommit: (value: CustomValue) => void;
-  onEditLabels: () => void;
+  onEditLabels?: () => void;
 }) {
   const { notify } = useColumns();
   const label = column.label;

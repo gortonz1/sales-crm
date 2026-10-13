@@ -96,9 +96,11 @@ function renderBuiltIn(
 export default function MockExamOptIns({
   initialItems,
   initialColumns,
+  isAdmin = false,
 }: {
   initialItems: OptIn[];
   initialColumns: BoardColumn[];
+  isAdmin?: boolean;
 }) {
   const columnsApi = useBoardColumns("mock-exam", initialColumns);
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
@@ -171,7 +173,7 @@ export default function MockExamOptIns({
   }
 
   return (
-    <ColumnsProvider api={columnsApi}>
+    <ColumnsProvider api={columnsApi} canEdit={isAdmin}>
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <AiCourseSubnav current="/ai-course/mock-exam" />
         <header className="shrink-0">
@@ -187,7 +189,7 @@ export default function MockExamOptIns({
             </Button>
             <h1 className="truncate">AI in Marketing Level 4</h1>
             {newCount > 0 && (
-              <span className="caption-style bg-muted shrink-0 rounded-full border border-pill px-2 py-[3px]">
+              <span className="caption-style bg-muted border-pill shrink-0 rounded-full border px-2 py-[3px]">
                 {newCount} new
               </span>
             )}
