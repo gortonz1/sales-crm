@@ -3,17 +3,27 @@ import { extractFields, slugKey, type ExtractField } from "@/lib/ai-extract";
 import { AutomationError } from "@/lib/automation-error";
 import {
   canExtractInto,
+  canSet,
   extractConfig,
   jobFile,
   JOBS_PER_RUN,
   messageConfig,
   renderTemplate,
+  setCellConfig,
   SMS_MAX_CHARS,
+  todayPlus,
   type Automation,
   type AutomationJob,
   type Recipient,
 } from "@/lib/automations";
-import { asText, customValue, type BoardColumn } from "@/lib/columns";
+import {
+  asDate,
+  asNumber,
+  asText,
+  columnOptions,
+  customValue,
+  type BoardColumn,
+} from "@/lib/columns";
 import { asFiles, FILES_BUCKET } from "@/lib/files";
 import { normaliseEmail, sendEmail, sendSms, toE164 } from "@/lib/messaging";
 import type { Database, Json } from "@/lib/supabase/database.types";
@@ -91,6 +101,25 @@ async function download(supabase: Supabase, path: string) {
   return Buffer.from(await data.arrayBuffer());
 }
 
+async function writeCell(
+  supabase: Supabase,
+  job: AutomationJob,
+  column: BoardColumn,
+  value: Json,
+) {
+  const { data, error } = await supabase.rpc("automation_set_cell", {
+    job_id: job.id,
+    column_id: column.id,
+    value,
+  });
+  if (error)
+    throw new AutomationError(
+      `Couldn't save ${column.label}: ${error.message}`,
+      true,
+    );
+  return data;
+}
+
 async function runExtract(
   supabase: Supabase,
   job: AutomationJob,
@@ -141,18 +170,7 @@ async function runExtract(
   for (const column of targets) {
     const value = extracted.values.get(column.id);
     if (value === undefined || value === null) continue;
-    const { data, error } = await supabase.rpc("set_custom_value", {
-      target: "board_items",
-      row_id: item.id,
-      column_id: column.id,
-      value,
-    });
-    if (error)
-      throw new AutomationError(
-        `Couldn't save ${column.label}: ${error.message}`,
-        true,
-      );
-    custom = data;
+    custom = await writeCell(supabase, job, column, value);
     filled.push({ column_id: column.id, value });
   }
   return {
@@ -165,6 +183,67 @@ async function runExtract(
     },
     custom,
   };
+}
+
+function cellValue(column: BoardColumn, context: Context): Json {
+  const { mode, value, offsetDays } = setCellConfig(context.automation);
+  if (mode === "clear") return null;
+  if (mode === "today") return todayPlus(offsetDays);
+  switch (column.type) {
+    case "status": {
+      const text = asText(value);
+      const option = columnOptions(column).find(
+        (entry) => entry.value === text,
+      );
+      if (!option)
+        throw new AutomationError(
+          `The label to set on ${column.label} no longer exists.`,
+        );
+      return option.value;
+    }
+    case "checkbox":
+      return value === true ? true : null;
+    case "number": {
+      const n = asNumber(value);
+      if (n === null)
+        throw new AutomationError(
+          `The value for ${column.label} isn't a number.`,
+        );
+      return n;
+    }
+    case "date": {
+      const date = asDate(value);
+      if (!date)
+        throw new AutomationError(
+          `The value for ${column.label} isn't a date.`,
+        );
+      return date;
+    }
+    default: {
+      const text = asText(value);
+      if (text === null)
+        throw new AutomationError(
+          `There's no value to set on ${column.label}.`,
+        );
+      return renderTemplate(text, context).trim() || null;
+    }
+  }
+}
+
+async function runSetCell(
+  supabase: Supabase,
+  job: AutomationJob,
+  context: Context,
+): Promise<JobResult> {
+  const { columnId } = setCellConfig(context.automation);
+  const column = context.columns.find((entry) => entry.id === columnId);
+  if (!column || !canSet(column))
+    throw new AutomationError("The column to set was deleted.");
+  if (column.id === context.automation.trigger_column_id)
+    throw new AutomationError("A rule can't set the column that triggers it.");
+  const value = cellValue(column, context);
+  const custom = await writeCell(supabase, job, column, value);
+  return { outcome: { column_id: column.id, value }, custom };
 }
 
 function recipientFor(
@@ -219,6 +298,8 @@ async function runJob(supabase: Supabase, job: AutomationJob) {
   switch (context.automation.action) {
     case "ai_extract":
       return runExtract(supabase, job, context);
+    case "set_cell":
+      return runSetCell(supabase, job, context);
     case "send_email":
       return runEmail(context);
     case "send_sms":

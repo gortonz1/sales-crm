@@ -14,7 +14,11 @@ export type Automation = Tables<"automations">;
 export type AutomationJob = Tables<"automation_jobs">;
 
 export type AutomationTrigger = "file_added" | "status_is" | "item_created";
-export type AutomationAction = "ai_extract" | "send_email" | "send_sms";
+export type AutomationAction =
+  | "ai_extract"
+  | "send_email"
+  | "send_sms"
+  | "set_cell";
 export type JobStatus = "queued" | "running" | "done" | "failed";
 
 export type AutomationSpec = Pick<
@@ -30,6 +34,7 @@ export const SUBJECT_MAX = 200;
 export const BODY_MAX = 5000;
 export const SMS_MAX_CHARS = 1600;
 export const SMS_SEGMENT_CHARS = 160;
+export const MAX_CHAIN_DEPTH = 5;
 
 export const TRIGGERS: { value: AutomationTrigger; label: string }[] = [
   { value: "file_added", label: "A file is added to a column" },
@@ -39,9 +44,15 @@ export const TRIGGERS: { value: AutomationTrigger; label: string }[] = [
 
 export const ACTIONS: { value: AutomationAction; label: string }[] = [
   { value: "ai_extract", label: "Extract with AI into columns" },
+  { value: "set_cell", label: "Set a cell" },
   { value: "send_email", label: "Send an email" },
   { value: "send_sms", label: "Send a text message" },
 ];
+
+export const PENDING_LABEL: Partial<Record<AutomationAction, string>> = {
+  ai_extract: "Extracting…",
+  set_cell: "Updating…",
+};
 
 export const EXTRACT_TYPES: ColumnType[] = [
   "text",
@@ -57,6 +68,9 @@ export const EXTRACT_TYPES: ColumnType[] = [
 export const canExtractInto = (column: Pick<BoardColumn, "type">) =>
   EXTRACT_TYPES.includes(column.type as ColumnType);
 
+export const canSet = (column: Pick<BoardColumn, "type">) =>
+  column.type !== "file";
+
 export const isTrigger = (value: string): value is AutomationTrigger =>
   TRIGGERS.some((entry) => entry.value === value);
 
@@ -65,8 +79,8 @@ export const isAction = (value: string): value is AutomationAction =>
 
 export const actionsFor = (trigger: AutomationTrigger): AutomationAction[] =>
   trigger === "file_added"
-    ? ["ai_extract", "send_email", "send_sms"]
-    : ["send_email", "send_sms"];
+    ? ["ai_extract", "set_cell", "send_email", "send_sms"]
+    : ["set_cell", "send_email", "send_sms"];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -110,6 +124,33 @@ export function messageConfig(
   };
 }
 
+export type SetMode = "value" | "today" | "clear";
+
+export type SetCellConfig = {
+  columnId: string | null;
+  mode: SetMode;
+  value: Json;
+  offsetDays: number;
+};
+
+export function setCellConfig(
+  automation: Pick<Automation, "config">,
+): SetCellConfig {
+  const config = isRecord(automation.config) ? automation.config : {};
+  const mode =
+    config.mode === "today" || config.mode === "clear" ? config.mode : "value";
+  return {
+    columnId: typeof config.column_id === "string" ? config.column_id : null,
+    mode,
+    value: (config.value ?? null) as Json,
+    offsetDays:
+      typeof config.offset_days === "number" &&
+      Number.isFinite(config.offset_days)
+        ? Math.trunc(config.offset_days)
+        : 0,
+  };
+}
+
 export function statusTriggerValue(automation: Pick<Automation, "config">) {
   const config = isRecord(automation.config) ? automation.config : {};
   return typeof config.status === "string" && config.status
@@ -144,11 +185,30 @@ function describeRecipient(to: Recipient | null, columns: BoardColumn[]) {
   return quoted(columnLabel(columns, to.columnId), "a deleted column");
 }
 
+export function describeOffset(offsetDays: number) {
+  if (!offsetDays) return "today";
+  const days = Math.abs(offsetDays) === 1 ? "day" : "days";
+  return `today ${offsetDays > 0 ? "plus" : "minus"} ${Math.abs(offsetDays)} ${days}`;
+}
+
+export function describeSetCell(spec: AutomationSpec, columns: BoardColumn[]) {
+  const { columnId, mode, value, offsetDays } = setCellConfig(spec);
+  const column = columns.find((entry) => entry.id === columnId) ?? null;
+  const label = quoted(column?.label ?? null, "a deleted column");
+  if (mode === "clear")
+    return column?.type === "checkbox" ? `untick ${label}` : `clear ${label}`;
+  if (mode === "today") return `set ${label} to ${describeOffset(offsetDays)}`;
+  if (column?.type === "checkbox") return `tick ${label}`;
+  const shown = column ? formatCell(column, value) : asText(value);
+  return `set ${label} to ${shown || "…"}`;
+}
+
 export function describeAction(spec: AutomationSpec, columns: BoardColumn[]) {
   if (spec.action === "send_email")
     return `send an email to ${describeRecipient(messageConfig(spec).to, columns)}`;
   if (spec.action === "send_sms")
     return `send a text to ${describeRecipient(messageConfig(spec).to, columns)}`;
+  if (spec.action === "set_cell") return describeSetCell(spec, columns);
   const { fields, overwrite } = extractConfig(spec);
   const labels = fields
     .map((id) => columnLabel(columns, id))
@@ -197,6 +257,8 @@ export type JobOutcome = {
   skipped: string[];
   to: string | null;
   subject: string | null;
+  columnId: string | null;
+  value: Json;
 };
 
 export function jobOutcome(job: Pick<AutomationJob, "result">): JobOutcome {
@@ -223,6 +285,8 @@ export function jobOutcome(job: Pick<AutomationJob, "result">): JobOutcome {
     skipped: strings(result.skipped),
     to: typeof result.to === "string" ? result.to : null,
     subject: typeof result.subject === "string" ? result.subject : null,
+    columnId: typeof result.column_id === "string" ? result.column_id : null,
+    value: (result.value ?? null) as Json,
   };
 }
 
@@ -234,7 +298,9 @@ export function summariseOutcome(
   const status = jobStatus(job);
   if (status === "queued") return "Waiting to run";
   if (status === "running")
-    return automation?.action === "ai_extract" ? "Extracting…" : "Sending…";
+    return automation
+      ? (PENDING_LABEL[automation.action as AutomationAction] ?? "Sending…")
+      : "Running…";
   if (status === "failed") return job.error ?? "Failed";
   const outcome = jobOutcome(job);
   if (automation?.action === "send_email")
@@ -243,6 +309,16 @@ export function summariseOutcome(
       : "Email sent";
   if (automation?.action === "send_sms")
     return outcome.to ? `Texted ${outcome.to}` : "Text sent";
+  if (automation?.action === "set_cell") {
+    const column = columns.find((entry) => entry.id === outcome.columnId);
+    const label = column?.label ?? "the cell";
+    if (outcome.value === null)
+      return column?.type === "checkbox"
+        ? `Unticked ${label}`
+        : `Cleared ${label}`;
+    if (column?.type === "checkbox") return `Ticked ${label}`;
+    return `Set ${label} to ${column ? formatCell(column, outcome.value) : asText(outcome.value)}`;
+  }
   if (!outcome.filled.length && !outcome.empty.length) return "Nothing to fill";
   const names = (ids: string[]) =>
     ids
@@ -263,15 +339,24 @@ export function pendingCells(
   jobs: Pick<AutomationJob, "automation_id" | "item_id" | "status">[],
   automations: Pick<Automation, "id" | "action" | "config">[],
 ) {
-  const pending = new Map<string, Set<string>>();
+  const pending = new Map<string, Map<string, string>>();
   for (const job of jobs) {
     if (!isOpen(job)) continue;
     const automation = automations.find(
       (entry) => entry.id === job.automation_id,
     );
-    if (!automation || automation.action !== "ai_extract") continue;
-    const cells = pending.get(job.item_id) ?? new Set<string>();
-    for (const field of extractConfig(automation).fields) cells.add(field);
+    if (!automation) continue;
+    const label = PENDING_LABEL[automation.action as AutomationAction];
+    if (!label) continue;
+    const targets =
+      automation.action === "ai_extract"
+        ? extractConfig(automation).fields
+        : [setCellConfig(automation).columnId].filter(
+            (id): id is string => id !== null,
+          );
+    if (!targets.length) continue;
+    const cells = pending.get(job.item_id) ?? new Map<string, string>();
+    for (const id of targets) cells.set(id, label);
     pending.set(job.item_id, cells);
   }
   return pending;
@@ -298,6 +383,19 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 const numberFormat = new Intl.NumberFormat("en-GB");
+const londonDate = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/London",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+export function todayPlus(offsetDays: number, now = new Date()) {
+  const today = londonDate.format(now);
+  const base = new Date(`${today}T00:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + offsetDays);
+  return base.toISOString().slice(0, 10);
+}
 
 export function formatCell(column: BoardColumn, value: Json): string {
   switch (column.type) {

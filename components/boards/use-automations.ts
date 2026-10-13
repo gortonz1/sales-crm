@@ -264,6 +264,6 @@ export function useAutomations({
     retry,
     kick,
     pendingLabel: (itemId: string, columnId: string) =>
-      pending.get(itemId)?.has(columnId) ? "Extracting…" : null,
+      pending.get(itemId)?.get(columnId) ?? null,
   };
 }

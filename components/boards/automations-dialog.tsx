@@ -35,6 +35,7 @@ import {
   TRIGGERS,
   actionsFor,
   canExtractInto,
+  canSet,
   defaultAutomationName,
   describeAction,
   describeTrigger,
@@ -45,6 +46,7 @@ import {
   jobFile,
   jobStatus,
   messageConfig,
+  setCellConfig,
   statusTriggerValue,
   summariseOutcome,
   templatePlaceholders,
@@ -54,8 +56,9 @@ import {
   type AutomationSpec,
   type AutomationTrigger,
   type JobStatus,
+  type SetMode,
 } from "@/lib/automations";
-import { columnOptions, type BoardColumn } from "@/lib/columns";
+import { asText, columnOptions, type BoardColumn } from "@/lib/columns";
 import type { Json } from "@/lib/supabase/database.types";
 import { cn } from "@/lib/utils";
 import type { AutomationDraft, AutomationsApi } from "./use-automations";
@@ -71,14 +74,17 @@ const STATUS: Record<
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const ANY_STATUS = "__any__";
 const FIXED_RECIPIENT = "__fixed__";
+const TEXT_TYPES = new Set(["text", "email", "phone", "link"]);
 
 const textareaClass =
   "border-line-strong bg-secondary text-foreground placeholder:text-subtle focus-visible:border-ring ease-power3-out flex min-h-[7em] w-full min-w-0 rounded-lg border px-3 py-2 text-[14px] leading-[1.4] outline-none transition-[border-color] duration-150";
 
 const isReady = (ready: Readiness | null, action: AutomationAction) =>
   ready === null ||
+  action === "set_cell" ||
   (action === "ai_extract"
     ? ready.ai
     : action === "send_email"
@@ -137,8 +143,8 @@ export default function AutomationsDialog({
           <DialogTitle>Automations</DialogTitle>
           <DialogDescription>
             Rules that run on {boardName} when something changes: read an
-            uploaded file with AI, or send an email or text when a status
-            changes or an item is added.
+            uploaded file with AI, set another cell, or send an email or text
+            when a status changes or an item is added.
           </DialogDescription>
         </DialogHeader>
         {unready.length > 0 && (
@@ -183,6 +189,11 @@ export default function AutomationsDialog({
 
 type RecipientKind = "column" | "fixed";
 
+const initialSetValue = (value: Json) => {
+  const text = asText(value);
+  return text ?? "";
+};
+
 function AutomationForm({
   api,
   columns,
@@ -214,6 +225,7 @@ function AutomationForm({
       : (triggers[0]?.value ?? "item_created");
   const extractInit = initial ? extractConfig(initial) : null;
   const messageInit = initial ? messageConfig(initial) : null;
+  const setInit = initial ? setCellConfig(initial) : null;
 
   const [trigger, setTrigger] = useState<AutomationTrigger>(firstTrigger);
   const [triggerColumnId, setTriggerColumnId] = useState(
@@ -240,6 +252,14 @@ function AutomationForm({
   );
   const [subject, setSubject] = useState(messageInit?.subject ?? "");
   const [body, setBody] = useState(messageInit?.body ?? "");
+  const [targetColumnId, setTargetColumnId] = useState(setInit?.columnId ?? "");
+  const [setMode, setSetMode] = useState<SetMode>(setInit?.mode ?? "value");
+  const [setValue, setSetValue] = useState(
+    setInit ? initialSetValue(setInit.value) : "",
+  );
+  const [offsetDays, setOffsetDays] = useState(
+    setInit ? String(setInit.offsetDays) : "0",
+  );
   const [name, setName] = useState(initial?.name ?? "");
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -267,19 +287,50 @@ function AutomationForm({
   const targets = columns.filter(
     (column) => canExtractInto(column) && column.id !== triggerColumn?.id,
   );
+  const settable = columns.filter(
+    (column) => canSet(column) && column.id !== triggerColumn?.id,
+  );
+  const targetColumn =
+    settable.find((column) => column.id === targetColumnId) ??
+    settable[0] ??
+    null;
+  const effectiveMode: SetMode =
+    setMode === "today" && targetColumn?.type !== "date" ? "value" : setMode;
   const statusOptions = triggerColumn ? columnOptions(triggerColumn) : [];
+  const targetOptions = targetColumn ? columnOptions(targetColumn) : [];
+
+  function typedSetValue(): Json {
+    if (!targetColumn) return null;
+    switch (targetColumn.type) {
+      case "checkbox":
+        return true;
+      case "number": {
+        const n = Number(setValue);
+        return setValue.trim() !== "" && Number.isFinite(n) ? n : null;
+      }
+      default:
+        return setValue.trim() || null;
+    }
+  }
 
   function buildConfig(): Json {
-    if (effectiveAction === "ai_extract") return { fields, overwrite };
-    const config: Record<string, Json> = {
-      to:
-        effectiveKind === "column"
-          ? { kind: "column", column_id: recipientColumn?.id ?? "" }
-          : { kind: "fixed", value: recipientValue.trim() },
-      body: body.trim(),
-    };
-    if (effectiveAction === "send_email") config.subject = subject.trim();
+    const config: Record<string, Json> = {};
     if (trigger === "status_is" && status) config.status = status;
+    if (effectiveAction === "ai_extract") return { fields, overwrite };
+    if (effectiveAction === "set_cell") {
+      config.column_id = targetColumn?.id ?? "";
+      config.mode = effectiveMode;
+      if (effectiveMode === "today")
+        config.offset_days = Math.trunc(Number(offsetDays)) || 0;
+      if (effectiveMode === "value") config.value = typedSetValue();
+      return config;
+    }
+    config.to =
+      effectiveKind === "column"
+        ? { kind: "column", column_id: recipientColumn?.id ?? "" }
+        : { kind: "fixed", value: recipientValue.trim() };
+    config.body = body.trim();
+    if (effectiveAction === "send_email") config.subject = subject.trim();
     return config;
   }
 
@@ -297,6 +348,22 @@ function AutomationForm({
       return "Pick the column that starts the automation.";
     if (effectiveAction === "ai_extract")
       return fields.length ? null : "Tick at least one column to fill.";
+    if (effectiveAction === "set_cell") {
+      if (!targetColumn) return "Pick a column to set.";
+      if (effectiveMode === "today" && !Number.isInteger(Number(offsetDays)))
+        return "Enter a whole number of days.";
+      if (effectiveMode === "value") {
+        if (targetColumn.type === "status" && !setValue)
+          return "Pick the label to set.";
+        if (targetColumn.type === "number" && typedSetValue() === null)
+          return "Enter a number.";
+        if (targetColumn.type === "date" && !DATE_PATTERN.test(setValue))
+          return "Pick a date.";
+        if (TEXT_TYPES.has(targetColumn.type) && !setValue.trim())
+          return "Enter the value to set.";
+      }
+      return null;
+    }
     const email = effectiveAction === "send_email";
     if (effectiveKind === "column" && !recipientColumn)
       return email
@@ -345,12 +412,14 @@ function AutomationForm({
     setRecipientValue("");
     setSubject("");
     setBody("");
+    setSetValue("");
     setName("");
   }
 
   const placeholders = templatePlaceholders(columns)
     .map((label) => `{{${label}}}`)
     .join(", ");
+  const idSuffix = initial?.id ?? "new";
 
   return (
     <form
@@ -490,7 +559,7 @@ function AutomationForm({
             ) : (
               <ul className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                 {targets.map((column) => {
-                  const id = `automation-field-${initial?.id ?? "new"}-${column.id}`;
+                  const id = `automation-field-${idSuffix}-${column.id}`;
                   return (
                     <li key={column.id} className="flex items-center gap-2">
                       <Checkbox
@@ -518,18 +587,148 @@ function AutomationForm({
           </div>
           <div className="flex items-center gap-2">
             <Checkbox
-              id={`automation-overwrite-${initial?.id ?? "new"}`}
+              id={`automation-overwrite-${idSuffix}`}
               checked={overwrite}
               onCheckedChange={(state) => setOverwrite(state === true)}
             />
             <Label
-              htmlFor={`automation-overwrite-${initial?.id ?? "new"}`}
+              htmlFor={`automation-overwrite-${idSuffix}`}
               className="text-foreground cursor-pointer text-[13px]"
             >
               Overwrite cells that already have a value
             </Label>
           </div>
         </>
+      ) : effectiveAction === "set_cell" ? (
+        <div className="flex flex-col gap-2">
+          <span className="caption-style text-subtle">Set</span>
+          {!targetColumn ? (
+            <p className="caption-style text-subtle leading-[1.4]">
+              There are no other columns to set yet. Add one from Columns.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+              <Select
+                value={targetColumn.id}
+                onValueChange={(value) => {
+                  setTargetColumnId(value);
+                  setSetValue("");
+                }}
+              >
+                <SelectTrigger
+                  aria-label="Column to set"
+                  className="sm:w-[14em]"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {settable.map((column) => (
+                    <SelectItem key={column.id} value={column.id}>
+                      {column.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={effectiveMode}
+                onValueChange={(value) =>
+                  (value === "value" ||
+                    value === "today" ||
+                    value === "clear") &&
+                  setSetMode(value)
+                }
+              >
+                <SelectTrigger
+                  aria-label="How to set it"
+                  className="sm:w-[12em]"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="value">
+                    {targetColumn.type === "checkbox" ? "tick it" : "to…"}
+                  </SelectItem>
+                  {targetColumn.type === "date" && (
+                    <SelectItem value="today">to today, plus days</SelectItem>
+                  )}
+                  <SelectItem value="clear">
+                    {targetColumn.type === "checkbox"
+                      ? "untick it"
+                      : "clear it"}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {effectiveMode === "today" && (
+                <Input
+                  aria-label="Days from today"
+                  type="number"
+                  step={1}
+                  value={offsetDays}
+                  onChange={(event) => setOffsetDays(event.target.value)}
+                  className="sm:w-[6em]"
+                />
+              )}
+              {effectiveMode === "value" && targetColumn.type === "status" && (
+                <Select
+                  value={setValue || undefined}
+                  onValueChange={setSetValue}
+                >
+                  <SelectTrigger aria-label="Label" className="sm:w-[14em]">
+                    <SelectValue placeholder="Pick a label" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {targetOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <span className="flex items-center gap-2">
+                          <span
+                            aria-hidden
+                            className="size-2.5 rounded-[3px]"
+                            style={{
+                              backgroundColor: option.color ?? "#6b6b6b",
+                            }}
+                          />
+                          {option.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {effectiveMode === "value" &&
+                (targetColumn.type === "number" ||
+                  targetColumn.type === "date" ||
+                  TEXT_TYPES.has(targetColumn.type)) && (
+                  <Input
+                    aria-label="Value"
+                    type={
+                      targetColumn.type === "number"
+                        ? "number"
+                        : targetColumn.type === "date"
+                          ? "date"
+                          : "text"
+                    }
+                    step={targetColumn.type === "number" ? "any" : undefined}
+                    placeholder={
+                      TEXT_TYPES.has(targetColumn.type)
+                        ? "Value, or {{Column name}}"
+                        : undefined
+                    }
+                    autoComplete="off"
+                    value={setValue}
+                    onChange={(event) => setSetValue(event.target.value)}
+                    className="min-w-0 flex-1 sm:min-w-[12em]"
+                  />
+                )}
+            </div>
+          )}
+          {targetColumn &&
+            effectiveMode === "value" &&
+            TEXT_TYPES.has(targetColumn.type) && (
+              <p className="caption-style text-subtle leading-[1.5]">
+                Copy another cell with double curly braces: {placeholders}.
+              </p>
+            )}
+        </div>
       ) : (
         <>
           <div className="flex flex-col gap-2">
@@ -588,11 +787,9 @@ function AutomationForm({
           </div>
           {effectiveAction === "send_email" && (
             <div className="flex flex-col gap-2">
-              <Label htmlFor={`automation-subject-${initial?.id ?? "new"}`}>
-                Subject
-              </Label>
+              <Label htmlFor={`automation-subject-${idSuffix}`}>Subject</Label>
               <Input
-                id={`automation-subject-${initial?.id ?? "new"}`}
+                id={`automation-subject-${idSuffix}`}
                 autoComplete="off"
                 maxLength={SUBJECT_MAX}
                 placeholder="Your application, {{Item}}"
@@ -603,9 +800,7 @@ function AutomationForm({
           )}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
-              <Label htmlFor={`automation-body-${initial?.id ?? "new"}`}>
-                Message
-              </Label>
+              <Label htmlFor={`automation-body-${idSuffix}`}>Message</Label>
               {effectiveAction === "send_sms" && (
                 <span className="caption-style text-subtle">
                   {body.length} characters ·{" "}
@@ -615,7 +810,7 @@ function AutomationForm({
               )}
             </div>
             <textarea
-              id={`automation-body-${initial?.id ?? "new"}`}
+              id={`automation-body-${idSuffix}`}
               maxLength={BODY_MAX}
               placeholder={
                 effectiveAction === "send_email"
