@@ -12,6 +12,108 @@ export type Database = {
   }
   public: {
     Tables: {
+      automation_jobs: {
+        Row: {
+          attempts: number
+          automation_id: string
+          board_id: string
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          item_id: string
+          payload: Json
+          result: Json | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          automation_id: string
+          board_id: string
+          item_id: string
+          payload?: Json
+          status?: string
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          payload?: Json
+          result?: Json | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_jobs_automation_id_fkey"
+            columns: ["automation_id"]
+            isOneToOne: false
+            referencedRelation: "automations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_jobs_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_jobs_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "board_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automations: {
+        Row: {
+          action: string
+          board_id: string
+          config: Json
+          created_at: string
+          created_by: string | null
+          enabled: boolean
+          id: string
+          name: string
+          trigger: string
+          trigger_column_id: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          board_id: string
+          config?: Json
+          enabled?: boolean
+          name: string
+          trigger: string
+          trigger_column_id: string
+        }
+        Update: {
+          action?: string
+          config?: Json
+          enabled?: boolean
+          name?: string
+          trigger?: string
+          trigger_column_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automations_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "boards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automations_trigger_column_id_fkey"
+            columns: ["trigger_column_id"]
+            isOneToOne: false
+            referencedRelation: "board_columns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       board_columns: {
         Row: {
           deleted_at: string | null
@@ -417,6 +519,38 @@ export type Database = {
     }
     Views: { [_ in never]: never }
     Functions: {
+      claim_automation_jobs: {
+        Args: { board?: string | null; max_jobs?: number }
+        Returns: {
+          attempts: number
+          automation_id: string
+          board_id: string
+          created_at: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          item_id: string
+          payload: Json
+          result: Json | null
+          started_at: string | null
+          status: string
+        }[]
+      }
+      finish_automation_job: {
+        Args: {
+          job_id: string
+          message?: string | null
+          ok: boolean
+          outcome?: Json | null
+          retry?: boolean
+        }
+        Returns: undefined
+      }
+      queue_automation: {
+        Args: { automation_id: string; item_ids?: string[] | null }
+        Returns: number
+      }
+      requeue_automation_job: { Args: { job_id: string }; Returns: undefined }
       crm_is_admin: { Args: never; Returns: boolean }
       crm_team: {
         Args: never

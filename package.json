@@ -12,6 +12,7 @@
     "frame:rive": "node scripts/rive-frame.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "@rive-app/canvas": "^2.31.0",
     "@rive-app/react-canvas": "^4.31.0",
     "@supabase/ssr": "0.12.7",
@@ -21,6 +22,7 @@
     "cmdk": "^1.1.1",
     "cn": "^0.3.0",
     "lottie-react": "^2.4.1",
+    "mammoth": "^1.13.0",
     "motion": "^12.23.22",
     "next": "^16.3.0",
     "photoswipe": "^5.4.4",

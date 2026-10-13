@@ -26,6 +26,7 @@ import {
   saveCustomValue,
   useBoardColumns,
 } from "@/components/sheet/use-board-columns";
+import type { Automation, AutomationJob } from "@/lib/automations";
 import {
   GROUP_NAME_MAX,
   NAME_MAX,
@@ -46,13 +47,15 @@ import {
   useBoardViewSettings,
 } from "@/lib/board-view";
 import { withCustom, type BoardColumn } from "@/lib/columns";
-import type { TablesUpdate } from "@/lib/supabase/database.types";
+import type { Json, TablesUpdate } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
+import AutomationsDialog from "./automations-dialog";
 import BoardGroupSection from "./board-group";
 import BoardKanban from "./board-kanban";
 import { FilterMenu, SortMenu, ViewSwitch } from "./board-toolbar";
 import NameDialog from "./name-dialog";
+import { useAutomations } from "./use-automations";
 import MenuIcon from "@/public/assets/images/_common/menu.svg";
 import PlusIcon from "@/public/assets/images/_common/plus.svg";
 import SearchIcon from "@/public/assets/images/_common/search.svg";
@@ -64,12 +67,16 @@ export default function BoardView({
   initialGroups,
   initialItems,
   initialColumns,
+  initialAutomations,
+  initialJobs,
   isAdmin,
 }: {
   board: CustomBoard;
   initialGroups: BoardGroup[];
   initialItems: BoardItem[];
   initialColumns: BoardColumn[];
+  initialAutomations: Automation[];
+  initialJobs: AutomationJob[];
   isAdmin: boolean;
 }) {
   const router = useRouter();
@@ -85,11 +92,24 @@ export default function BoardView({
   >(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [editingColumns, setEditingColumns] = useState(false);
+  const [editingAutomations, setEditingAutomations] = useState(false);
   const [undo, setUndo] = useState<UndoNotice | null>(null);
   const closeUndo = useCallback(() => setUndo(null), []);
 
   const [settings, updateSettings] = useBoardViewSettings(board.id);
   const columns = columnsApi.columns;
+  const onItemCustom = useCallback((id: string, custom: Json) => {
+    setItems((current) =>
+      current.map((item) => (item.id === id ? { ...item, custom } : item)),
+    );
+  }, []);
+  const automations = useAutomations({
+    boardId: board.id,
+    columns,
+    initialAutomations,
+    initialJobs,
+    onItemCustom,
+  });
   const rules = useMemo(
     () =>
       settings.filters.flatMap((rule) => {
@@ -181,7 +201,14 @@ export default function BoardView({
         item.id !== id ? item : error ? previous : { ...item, custom: data },
       ),
     );
-    if (error) fail(`save ${previous.name}`, error.message);
+    if (error) return fail(`save ${previous.name}`, error.message);
+    if (
+      Array.isArray(value) &&
+      automations.automations.some(
+        (rule) => rule.enabled && rule.trigger_column_id === columnId,
+      )
+    )
+      void automations.kick();
   }
 
   const binned = () => ({ deleted_at: new Date().toISOString() });
@@ -409,6 +436,11 @@ export default function BoardView({
                       Edit columns
                     </DropdownMenuItem>
                     <DropdownMenuItem
+                      onSelect={() => setEditingAutomations(true)}
+                    >
+                      Automations
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
                       onSelect={() => setConfirm({ kind: "board" })}
                       className="text-danger"
                     >
@@ -459,6 +491,16 @@ export default function BoardView({
                   Columns
                 </Button>
               )}
+              <Button
+                variant={automations.openCount ? "muted" : "ghost"}
+                size="sm"
+                onClick={() => setEditingAutomations(true)}
+              >
+                Automations
+                {automations.openCount
+                  ? ` · ${automations.openCount} running`
+                  : ""}
+              </Button>
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="caption-style text-subtle">
@@ -533,6 +575,7 @@ export default function BoardView({
                   }
                   onDeleteItem={deleteItem}
                   onCustomChange={saveCustom}
+                  pendingLabel={automations.pendingLabel}
                   onRename={() => setRenaming({ kind: "group", group })}
                   onColor={(color) => updateGroup(group.id, { color })}
                   onMove={(direction) => moveGroup(group.id, direction)}
@@ -566,6 +609,16 @@ export default function BoardView({
           open={editingColumns}
           onOpenChange={setEditingColumns}
           boardName={name}
+        />
+
+        <AutomationsDialog
+          open={editingAutomations}
+          onOpenChange={setEditingAutomations}
+          api={automations}
+          columns={columns}
+          canEdit={isAdmin}
+          boardName={name}
+          itemName={(id) => items.find((item) => item.id === id)?.name ?? null}
         />
 
         <UndoToast notice={undo} onClose={closeUndo} />

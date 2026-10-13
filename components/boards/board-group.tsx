@@ -30,6 +30,7 @@ export default function BoardGroupSection({
   onMoveItem,
   onDeleteItem,
   onCustomChange,
+  pendingLabel,
   onRename,
   onColor,
   onMove,
@@ -44,6 +45,7 @@ export default function BoardGroupSection({
   onMoveItem: (id: string, groupId: string) => void;
   onDeleteItem: (item: BoardItem) => void;
   onCustomChange: (id: string, columnId: string, value: CustomValue) => void;
+  pendingLabel: (itemId: string, columnId: string) => string | null;
   onRename: () => void;
   onColor: (color: string) => void;
   onMove: (direction: -1 | 1) => void;
@@ -233,6 +235,7 @@ export default function BoardGroupSection({
             onCustomChange={(item, column, value) =>
               onCustomChange(item.id, column.id, value)
             }
+            pendingLabel={(item, column) => pendingLabel(item.id, column.id)}
             footer={<AddItem onAdd={onAddItem} />}
           />
         </div>

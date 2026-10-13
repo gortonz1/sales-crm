@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import BoardView from "@/components/boards/board-view";
 import NoAccess from "@/components/leads/no-access";
+import { JOBS_SHOWN } from "@/lib/automations";
 import type { BoardItem } from "@/lib/boards";
 import { createClient } from "@/lib/supabase/server";
 
@@ -53,6 +54,8 @@ export default async function BoardPage({ params }: Props) {
     itemsResult,
     columnsResult,
     adminResult,
+    automationsResult,
+    jobsResult,
   ] = await Promise.all([
     supabase.from("lead_stages").select("id").limit(1),
     supabase
@@ -75,6 +78,17 @@ export default async function BoardPage({ params }: Props) {
       .is("deleted_at", null)
       .order("position"),
     supabase.rpc("crm_is_admin"),
+    supabase
+      .from("automations")
+      .select("*")
+      .eq("board_id", id)
+      .order("created_at"),
+    supabase
+      .from("automation_jobs")
+      .select("*")
+      .eq("board_id", id)
+      .order("created_at", { ascending: false })
+      .limit(JOBS_SHOWN),
   ]);
 
   if (!stagesResult.data?.length) return <NoAccess />;
@@ -89,6 +103,8 @@ export default async function BoardPage({ params }: Props) {
       initialGroups={groups}
       initialItems={itemsResult.filter((item) => groupIds.has(item.group_id))}
       initialColumns={columnsResult.data ?? []}
+      initialAutomations={automationsResult.data ?? []}
+      initialJobs={jobsResult.data ?? []}
       isAdmin={adminResult.data === true}
     />
   );
