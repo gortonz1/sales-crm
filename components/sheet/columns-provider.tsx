@@ -23,6 +23,7 @@ import type { BoardColumn } from "@/lib/columns";
 
 type ColumnsContext = {
   api: ColumnsApi;
+  canEdit: boolean;
   editLabels: (column: BoardColumn) => void;
   confirmDelete: (column: BoardColumn) => void;
   notify: (message: string) => void;
@@ -38,9 +39,11 @@ export function useColumns() {
 
 export default function ColumnsProvider({
   api,
+  canEdit,
   children,
 }: {
   api: ColumnsApi;
+  canEdit: boolean;
   children: ReactNode;
 }) {
   const [labelsId, setLabelsId] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export default function ColumnsProvider({
     <Context.Provider
       value={{
         api,
+        canEdit,
         editLabels: (column) => setLabelsId(column.id),
         confirmDelete: setDeleting,
         notify: setNotice,

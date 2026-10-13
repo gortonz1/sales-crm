@@ -19,6 +19,7 @@ import {
 } from "@/components/_ui/dropdown-menu";
 import { Input } from "@/components/_ui/input";
 import UndoToast, { type UndoNotice } from "@/components/_common/undo-toast";
+import ColumnsDialog from "@/components/sheet/columns-dialog";
 import ColumnsProvider from "@/components/sheet/columns-provider";
 import type { CustomValue } from "@/components/sheet/custom-cell";
 import {
@@ -83,6 +84,7 @@ export default function BoardView({
     { kind: "board" } | { kind: "group"; group: BoardGroup } | null
   >(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
+  const [editingColumns, setEditingColumns] = useState(false);
   const [undo, setUndo] = useState<UndoNotice | null>(null);
   const closeUndo = useCallback(() => setUndo(null), []);
 
@@ -365,7 +367,7 @@ export default function BoardView({
     : null;
 
   return (
-    <ColumnsProvider api={columnsApi}>
+    <ColumnsProvider api={columnsApi} canEdit={isAdmin}>
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="shrink-0">
           <div className="flex items-center justify-between gap-2 px-4 py-[14px]">
@@ -381,7 +383,10 @@ export default function BoardView({
               </Button>
               <h1 className="truncate">{name}</h1>
               {board.monday_board_id && (
-                <span className="caption-style bg-muted border-pill hidden shrink-0 rounded-full border px-2 py-[3px] sm:inline">
+                <span
+                  title="A copy of the monday.com board. It isn't linked back, so edit it like any other board."
+                  className="caption-style bg-muted border-pill hidden shrink-0 rounded-full border px-2 py-[3px] sm:inline"
+                >
                   From monday.com
                 </span>
               )}
@@ -399,6 +404,9 @@ export default function BoardView({
                       onSelect={() => setRenaming({ kind: "board" })}
                     >
                       Rename board
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setEditingColumns(true)}>
+                      Edit columns
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onSelect={() => setConfirm({ kind: "board" })}
@@ -442,6 +450,15 @@ export default function BoardView({
                 sort={sortActive ? settings.sort : null}
                 onChange={(sort) => updateSettings({ sort })}
               />
+              {isAdmin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingColumns(true)}
+                >
+                  Columns
+                </Button>
+              )}
             </div>
             <div className="flex items-center justify-between gap-3">
               <span className="caption-style text-subtle">
@@ -477,10 +494,14 @@ export default function BoardView({
               onMove={(item, column, value) =>
                 saveCustom(item.id, column.id, value)
               }
-              onAddStatusColumn={async () => {
-                const added = await columnsApi.add("status");
-                if (added) updateSettings({ kanbanField: added.id });
-              }}
+              onAddStatusColumn={
+                isAdmin
+                  ? async () => {
+                      const added = await columnsApi.add("status");
+                      if (added) updateSettings({ kanbanField: added.id });
+                    }
+                  : undefined
+              }
             />
           </div>
         ) : (
@@ -539,6 +560,12 @@ export default function BoardView({
             else if (renaming?.kind === "group")
               updateGroup(renaming.group.id, { name: next });
           }}
+        />
+
+        <ColumnsDialog
+          open={editingColumns}
+          onOpenChange={setEditingColumns}
+          boardName={name}
         />
 
         <UndoToast notice={undo} onClose={closeUndo} />

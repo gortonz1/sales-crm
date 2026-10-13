@@ -15,6 +15,7 @@ import CustomCell, { type CustomValue } from "./custom-cell";
 import { useColumns } from "./columns-provider";
 import {
   COLUMN_TYPES,
+  LABEL_MAX,
   customValue,
   typeLabel,
   type BoardColumn,
@@ -45,11 +46,11 @@ export default function SheetTable<Row extends CustomRow>({
   footer?: ReactNode;
   rowClassName?: (row: Row) => string | undefined;
 }) {
-  const { api, editLabels } = useColumns();
+  const { api, canEdit, editLabels } = useColumns();
   const columns = api.visible;
   const totalWidth =
     pinned.width +
-    ADD_WIDTH +
+    (canEdit ? ADD_WIDTH : 0) +
     columns.reduce((sum, column) => sum + column.width, 0);
 
   return (
@@ -68,7 +69,7 @@ export default function SheetTable<Row extends CustomRow>({
         {columns.map((column) => (
           <col key={column.id} style={{ width: `${column.width}em` }} />
         ))}
-        <col style={{ width: `${ADD_WIDTH}em` }} />
+        {canEdit && <col style={{ width: `${ADD_WIDTH}em` }} />}
       </colgroup>
       <thead>
         <tr>
@@ -83,9 +84,11 @@ export default function SheetTable<Row extends CustomRow>({
               count={columns.length}
             />
           ))}
-          <th className="bg-card border-line-strong h-9 border-b border-l p-0">
-            <AddColumnMenu />
-          </th>
+          {canEdit && (
+            <th className="bg-card border-line-strong h-9 border-b border-l p-0">
+              <AddColumnMenu />
+            </th>
+          )}
         </tr>
       </thead>
       <tbody>
@@ -97,7 +100,7 @@ export default function SheetTable<Row extends CustomRow>({
             {columns.map((column) => (
               <td
                 key={column.id}
-                className="border-line-strong border-b border-l p-0 group-hover:bg-overlay/[0.02]"
+                className="border-line-strong group-hover:bg-overlay/[0.02] border-b border-l p-0"
               >
                 {column.field ? (
                   renderBuiltIn(column.field, row)
@@ -107,17 +110,24 @@ export default function SheetTable<Row extends CustomRow>({
                     rowId={row.id}
                     value={customValue(row, column.id)}
                     onCommit={(value) => onCustomChange(row, column, value)}
-                    onEditLabels={() => editLabels(column)}
+                    onEditLabels={
+                      canEdit ? () => editLabels(column) : undefined
+                    }
                   />
                 )}
               </td>
             ))}
-            <td className="border-line-strong border-b border-l p-0" />
+            {canEdit && (
+              <td className="border-line-strong border-b border-l p-0" />
+            )}
           </tr>
         ))}
         {footer && (
           <tr>
-            <td colSpan={columns.length + 2} className="bg-background p-0">
+            <td
+              colSpan={columns.length + (canEdit ? 2 : 1)}
+              className="bg-background p-0"
+            >
               {footer}
             </td>
           </tr>
@@ -136,7 +146,7 @@ function ColumnHeader({
   index: number;
   count: number;
 }) {
-  const { api, editLabels, confirmDelete } = useColumns();
+  const { api, canEdit, editLabels, confirmDelete } = useColumns();
   const [renaming, setRenaming] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -160,6 +170,14 @@ function ColumnHeader({
     let target = side === "right" ? index + 1 : index;
     if (from < target) target -= 1;
     api.move(id, target);
+  }
+
+  if (!canEdit) {
+    return (
+      <th className="bg-card border-line-strong caption-style text-subtle h-9 border-b border-l px-2 text-center font-normal">
+        <span className="block truncate">{column.label}</span>
+      </th>
+    );
   }
 
   return (
@@ -307,7 +325,7 @@ function RenameInput({
       aria-label="Column name"
       autoFocus
       value={draft}
-      maxLength={60}
+      maxLength={LABEL_MAX}
       onFocus={(event) => event.currentTarget.select()}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={() => onDone(draft.trim())}

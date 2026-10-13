@@ -44,10 +44,12 @@ export default function Recruitment({
   initialItems,
   initialColumns,
   leads,
+  isAdmin = false,
 }: {
   initialItems: RecruitmentRow[];
   initialColumns: BoardColumn[];
   leads: LeadOption[];
+  isAdmin?: boolean;
 }) {
   const columnsApi = useBoardColumns("recruitment", initialColumns);
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
@@ -140,7 +142,7 @@ export default function Recruitment({
   }
 
   return (
-    <ColumnsProvider api={columnsApi}>
+    <ColumnsProvider api={columnsApi} canEdit={isAdmin}>
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="shrink-0">
           <div className="flex items-center justify-between gap-2 px-4 py-[14px]">
@@ -155,7 +157,7 @@ export default function Recruitment({
                 <MenuIcon aria-hidden className="size-3.5" />
               </Button>
               <h1 className="truncate">Recruitment</h1>
-              <span className="caption-style bg-muted shrink-0 rounded-full border border-pill px-2 py-[3px]">
+              <span className="caption-style bg-muted border-pill shrink-0 rounded-full border px-2 py-[3px]">
                 {signedUp} signed up
               </span>
             </div>

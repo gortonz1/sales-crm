@@ -62,9 +62,11 @@ export default function Leads({
   board = "leads",
   initialColumns,
   canAdd = false,
+  isAdmin = false,
 }: {
   board?: "leads" | "ai-enquiries";
   initialColumns: BoardColumn[];
+  isAdmin?: boolean;
   stages: LeadStage[];
   initialLeads: Lead[];
   initialEvents: TimelineEvent[];
@@ -251,7 +253,7 @@ export default function Leads({
   }
 
   return (
-    <ColumnsProvider api={columnsApi}>
+    <ColumnsProvider api={columnsApi} canEdit={isAdmin}>
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         {subnav}
         <header className="shrink-0">

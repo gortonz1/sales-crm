@@ -4,6 +4,7 @@ import { useState } from "react";
 import { asFiles, removeColumnFiles } from "@/lib/files";
 import { createClient } from "@/lib/supabase/client";
 import {
+  LABEL_MAX,
   defaultOptions,
   defaultWidth,
   sortColumns,
@@ -47,7 +48,7 @@ export function useBoardColumns(
     }
   }
 
-  async function add(type: ColumnType) {
+  async function add(type: ColumnType, label = typeLabel(type)) {
     setError(null);
     const position =
       columns.reduce((max, column) => Math.max(max, column.position), 0) + 1;
@@ -56,7 +57,7 @@ export function useBoardColumns(
       .insert({
         board,
         board_id: boardId,
-        label: typeLabel(type),
+        label: label.trim().slice(0, LABEL_MAX) || typeLabel(type),
         type,
         position,
         width: defaultWidth(type),

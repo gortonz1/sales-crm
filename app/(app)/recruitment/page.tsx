@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "Recruitment · Sales CRM" };
 
 export default async function RecruitmentPage() {
   const supabase = await createClient();
-  const [stagesResult, itemsResult, leadsResult, columnsResult] =
+  const [stagesResult, itemsResult, leadsResult, columnsResult, adminResult] =
     await Promise.all([
       supabase.from("lead_stages").select("id").limit(1),
       supabase
@@ -20,6 +20,7 @@ export default async function RecruitmentPage() {
         .select("*")
         .eq("board", "recruitment")
         .order("position"),
+      supabase.rpc("crm_is_admin"),
     ]);
 
   if (!stagesResult.data?.length) return <NoAccess />;
@@ -29,6 +30,7 @@ export default async function RecruitmentPage() {
       initialItems={itemsResult.data ?? []}
       initialColumns={columnsResult.data ?? []}
       leads={leadsResult.data ?? []}
+      isAdmin={adminResult.data === true}
     />
   );
 }
