@@ -21,7 +21,6 @@ import {
 } from "@/components/_ui/select";
 import { useColumns } from "./columns-provider";
 import {
-  COLUMN_TYPES,
   LABEL_MAX,
   typeLabel,
   type BoardColumn,
@@ -144,7 +143,7 @@ function ColumnsEditor({ boardName }: { boardName: string }) {
 }
 
 function AddColumn() {
-  const { api } = useColumns();
+  const { api, types } = useColumns();
   const [name, setName] = useState("");
   const [type, setType] = useState<ColumnType>("text");
   const [adding, setAdding] = useState(false);
@@ -184,7 +183,7 @@ function AddColumn() {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {COLUMN_TYPES.map((choice) => (
+          {types.map((choice) => (
             <SelectItem key={choice.value} value={choice.value}>
               {choice.label}
             </SelectItem>
@@ -215,7 +214,7 @@ function ColumnRow({
   onCancel: () => void;
   onDelete: () => void;
 }) {
-  const { api, editLabels } = useColumns();
+  const { api, editLabels, types } = useColumns();
   const builtIn = column.field !== null;
 
   if (confirming) {
@@ -263,7 +262,7 @@ function ColumnRow({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {COLUMN_TYPES.map((choice) => (
+              {types.map((choice) => (
                 <SelectItem key={choice.value} value={choice.value}>
                   {choice.label}
                 </SelectItem>

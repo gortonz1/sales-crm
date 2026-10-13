@@ -5,7 +5,16 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Recruitment · Sales CRM" };
 
-export default async function RecruitmentPage() {
+const isUuid = (value: unknown): value is string =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
+export default async function RecruitmentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ item?: string }>;
+}) {
+  const { item } = await searchParams;
   const supabase = await createClient();
   const [stagesResult, itemsResult, leadsResult, columnsResult, adminResult] =
     await Promise.all([
@@ -30,6 +39,7 @@ export default async function RecruitmentPage() {
       initialItems={itemsResult.data ?? []}
       initialColumns={columnsResult.data ?? []}
       leads={leadsResult.data ?? []}
+      initialSelectedId={isUuid(item) ? item : null}
       isAdmin={adminResult.data === true}
     />
   );

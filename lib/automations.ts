@@ -69,7 +69,7 @@ export const canExtractInto = (column: Pick<BoardColumn, "type">) =>
   EXTRACT_TYPES.includes(column.type as ColumnType);
 
 export const canSet = (column: Pick<BoardColumn, "type">) =>
-  column.type !== "file";
+  column.type !== "file" && column.type !== "recruitment";
 
 export const isTrigger = (value: string): value is AutomationTrigger =>
   TRIGGERS.some((entry) => entry.value === value);

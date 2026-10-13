@@ -25,6 +25,8 @@ export default function BoardGroupSection({
   groups,
   index,
   items,
+  itemWidth,
+  onItemWidth,
   onAddItem,
   onRenameItem,
   onMoveItem,
@@ -40,6 +42,8 @@ export default function BoardGroupSection({
   groups: BoardGroup[];
   index: number;
   items: BoardItem[];
+  itemWidth: number;
+  onItemWidth?: (width: number, commit: boolean) => void;
   onAddItem: (name: string) => void;
   onRenameItem: (id: string, name: string) => void;
   onMoveItem: (id: string, groupId: string) => void;
@@ -163,7 +167,8 @@ export default function BoardGroupSection({
             accent={group.color}
             pinned={{
               label: "Item",
-              width: 16,
+              width: itemWidth,
+              onWidth: onItemWidth,
               render: (item) => (
                 <div className="relative flex items-center">
                   <span
@@ -236,7 +241,7 @@ export default function BoardGroupSection({
               onCustomChange(item.id, column.id, value)
             }
             pendingLabel={(item, column) => pendingLabel(item.id, column.id)}
-            footer={<AddItem onAdd={onAddItem} />}
+            footer={<AddItem width={itemWidth} onAdd={onAddItem} />}
           />
         </div>
       )}
@@ -244,7 +249,13 @@ export default function BoardGroupSection({
   );
 }
 
-function AddItem({ onAdd }: { onAdd: (name: string) => void }) {
+function AddItem({
+  width,
+  onAdd,
+}: {
+  width: number;
+  onAdd: (name: string) => void;
+}) {
   const [value, setValue] = useState("");
   return (
     <input
@@ -259,7 +270,8 @@ function AddItem({ onAdd }: { onAdd: (name: string) => void }) {
           setValue("");
         }
       }}
-      className="placeholder:text-subtle focus:bg-secondary sticky left-0 h-9 w-[16em] bg-transparent px-2.5 text-[13px] outline-none"
+      style={{ width: `${width}em` }}
+      className="placeholder:text-subtle focus:bg-secondary sticky left-0 h-9 bg-transparent px-2.5 text-[13px] outline-none"
     />
   );
 }

@@ -19,11 +19,13 @@ import {
 } from "@/components/_ui/dialog";
 import LabelsDialog from "./labels-dialog";
 import type { ColumnsApi } from "./use-board-columns";
-import type { BoardColumn } from "@/lib/columns";
+import { COLUMN_TYPES, type BoardColumn, type Lookups } from "@/lib/columns";
 
 type ColumnsContext = {
   api: ColumnsApi;
   canEdit: boolean;
+  lookups: Lookups | null;
+  types: typeof COLUMN_TYPES;
   editLabels: (column: BoardColumn) => void;
   confirmDelete: (column: BoardColumn) => void;
   notify: (message: string) => void;
@@ -40,12 +42,17 @@ export function useColumns() {
 export default function ColumnsProvider({
   api,
   canEdit,
+  lookups = null,
   children,
 }: {
   api: ColumnsApi;
   canEdit: boolean;
+  lookups?: Lookups | null;
   children: ReactNode;
 }) {
+  const types = lookups
+    ? COLUMN_TYPES
+    : COLUMN_TYPES.filter((type) => type.value !== "recruitment");
   const [labelsId, setLabelsId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<BoardColumn | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -60,6 +67,8 @@ export default function ColumnsProvider({
       value={{
         api,
         canEdit,
+        lookups,
+        types,
         editLabels: (column) => setLabelsId(column.id),
         confirmDelete: setDeleting,
         notify: setNotice,

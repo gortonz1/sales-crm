@@ -44,11 +44,13 @@ export default function Recruitment({
   initialItems,
   initialColumns,
   leads,
+  initialSelectedId = null,
   isAdmin = false,
 }: {
   initialItems: RecruitmentRow[];
   initialColumns: BoardColumn[];
   leads: LeadOption[];
+  initialSelectedId?: string | null;
   isAdmin?: boolean;
 }) {
   const columnsApi = useBoardColumns("recruitment", initialColumns);
@@ -57,7 +59,9 @@ export default function Recruitment({
   const [group, setGroup] = useState("active");
   const [query, setQuery] = useState("");
   const [view, setView] = useState<View>("table");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialSelectedId,
+  );
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
