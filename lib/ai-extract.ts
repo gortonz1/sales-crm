@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import mammoth from "mammoth";
+import { AutomationError } from "@/lib/automation-error";
 import { columnOptions, type BoardColumn, type CellValue } from "@/lib/columns";
 import { extensionOf } from "@/lib/files";
 
@@ -23,14 +24,6 @@ const DOCX_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const TEXT_EXTENSIONS = new Set(["txt", "md", "csv", "tsv", "json", "log"]);
 
-export class ExtractError extends Error {
-  retry: boolean;
-  constructor(message: string, retry = false) {
-    super(message);
-    this.retry = retry;
-  }
-}
-
 export type ExtractFile = { name: string; type: string; bytes: Buffer };
 export type ExtractField = { key: string; column: BoardColumn };
 export type Extracted = {
@@ -45,7 +38,7 @@ export const modelId = () =>
 export const aiConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
 const tooBig = (name: string, limit: number) =>
-  new ExtractError(
+  new AutomationError(
     `${name} is over the ${Math.round(limit / 1024 / 1024)} MB limit for AI extraction.`,
   );
 
@@ -86,10 +79,10 @@ async function documentBlock(
     try {
       text = (await mammoth.extractRawText({ buffer: file.bytes })).value;
     } catch {
-      throw new ExtractError(`Couldn't read the text in ${file.name}.`);
+      throw new AutomationError(`Couldn't read the text in ${file.name}.`);
     }
     if (!text.trim())
-      throw new ExtractError(`${file.name} doesn't contain any text.`);
+      throw new AutomationError(`${file.name} doesn't contain any text.`);
     return {
       type: "document",
       title: file.name,
@@ -101,14 +94,14 @@ async function documentBlock(
       throw tooBig(file.name, TEXT_MAX_BYTES);
     const text = file.bytes.toString("utf8");
     if (!text.trim())
-      throw new ExtractError(`${file.name} doesn't contain any text.`);
+      throw new AutomationError(`${file.name} doesn't contain any text.`);
     return {
       type: "document",
       title: file.name,
       source: { type: "text", media_type: "text/plain", data: text },
     };
   }
-  throw new ExtractError(
+  throw new AutomationError(
     `Can't read ${ext ? `.${ext}` : "that kind of"} files yet. Use a PDF, Word (.docx), image or plain text file.`,
   );
 }
@@ -246,7 +239,7 @@ export async function extractFields(
   fields: ExtractField[],
 ): Promise<Extracted> {
   if (!aiConfigured())
-    throw new ExtractError(
+    throw new AutomationError(
       "AI extraction isn't set up: add ANTHROPIC_API_KEY to the server.",
     );
   if (!fields.length) return { values: new Map(), empty: [], model: modelId() };
@@ -292,37 +285,40 @@ export async function extractFields(
     });
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError)
-      throw new ExtractError(
+      throw new AutomationError(
         "The ANTHROPIC_API_KEY on the server was rejected.",
       );
     if (error instanceof Anthropic.RateLimitError)
-      throw new ExtractError(
+      throw new AutomationError(
         "The AI service is busy. It will be retried.",
         true,
       );
     if (error instanceof Anthropic.BadRequestError)
-      throw new ExtractError(
+      throw new AutomationError(
         `The AI service rejected the file: ${error.message}`,
       );
     if (error instanceof Anthropic.APIConnectionError)
-      throw new ExtractError(
+      throw new AutomationError(
         "Couldn't reach the AI service. It will be retried.",
         true,
       );
     if (error instanceof Anthropic.APIError && error.status >= 500)
-      throw new ExtractError(
+      throw new AutomationError(
         "The AI service had a problem. It will be retried.",
         true,
       );
-    throw new ExtractError(
+    throw new AutomationError(
       error instanceof Error ? error.message : "AI extraction failed.",
     );
   }
 
   if (response.stop_reason === "refusal")
-    throw new ExtractError("The AI declined to read this file.");
+    throw new AutomationError("The AI declined to read this file.");
   if (response.stop_reason === "max_tokens")
-    throw new ExtractError("The AI's answer was cut short. Try again.", true);
+    throw new AutomationError(
+      "The AI's answer was cut short. Try again.",
+      true,
+    );
 
   const text = response.content
     .flatMap((part) => (part.type === "text" ? [part.text] : []))
@@ -331,7 +327,7 @@ export async function extractFields(
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new ExtractError(
+    throw new AutomationError(
       "The AI's answer couldn't be read. Try again.",
       true,
     );

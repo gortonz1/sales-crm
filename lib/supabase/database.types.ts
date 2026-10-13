@@ -77,7 +77,7 @@ export type Database = {
           id: string
           name: string
           trigger: string
-          trigger_column_id: string
+          trigger_column_id: string | null
           updated_at: string
         }
         Insert: {
@@ -87,7 +87,7 @@ export type Database = {
           enabled?: boolean
           name: string
           trigger: string
-          trigger_column_id: string
+          trigger_column_id?: string | null
         }
         Update: {
           action?: string
@@ -95,7 +95,7 @@ export type Database = {
           enabled?: boolean
           name?: string
           trigger?: string
-          trigger_column_id?: string
+          trigger_column_id?: string | null
         }
         Relationships: [
           {

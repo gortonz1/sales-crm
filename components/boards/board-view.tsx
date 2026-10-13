@@ -105,7 +105,6 @@ export default function BoardView({
   }, []);
   const automations = useAutomations({
     boardId: board.id,
-    columns,
     initialAutomations,
     initialJobs,
     onItemCustom,
@@ -160,6 +159,12 @@ export default function BoardView({
       .single();
     if (error || !data) return fail("add the item", error?.message);
     setItems((current) => [...current, data]);
+    if (
+      automations.automations.some(
+        (rule) => rule.enabled && rule.trigger === "item_created",
+      )
+    )
+      void automations.kick();
   }
 
   async function updateItem(id: string, patch: TablesUpdate<"board_items">) {
@@ -203,7 +208,6 @@ export default function BoardView({
     );
     if (error) return fail(`save ${previous.name}`, error.message);
     if (
-      Array.isArray(value) &&
       automations.automations.some(
         (rule) => rule.enabled && rule.trigger_column_id === columnId,
       )
