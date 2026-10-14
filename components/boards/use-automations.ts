@@ -33,6 +33,11 @@ function keepRecent(jobs: AutomationJob[]) {
   return sortJobs([...open, ...closed]);
 }
 
+type Expected = { automation_id: string; item_id: string; status: "queued" };
+
+const expectedKey = (job: Pick<Expected, "automation_id" | "item_id">) =>
+  `${job.item_id}:${job.automation_id}`;
+
 export function useAutomations({
   boardId,
   initialAutomations,
@@ -48,6 +53,9 @@ export function useAutomations({
   const [jobs, setJobs] = useState(() => keepRecent(initialJobs));
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [expected, setExpected] = useState<Map<string, Expected>>(
+    () => new Map(),
+  );
   const onItemCustomRef = useRef(onItemCustom);
   useEffect(() => {
     onItemCustomRef.current = onItemCustom;
@@ -56,11 +64,48 @@ export function useAutomations({
   const kickAgain = useRef(false);
   const handled = useRef(new Set<string>());
 
-  const upsertJob = useCallback((job: AutomationJob) => {
-    setJobs((current) =>
-      keepRecent([...current.filter((entry) => entry.id !== job.id), job]),
-    );
-  }, []);
+  const settle = useCallback(
+    (seen: Pick<Expected, "automation_id" | "item_id">[]) => {
+      if (!seen.length) return;
+      setExpected((current) => {
+        const keys = seen.map(expectedKey).filter((key) => current.has(key));
+        if (!keys.length) return current;
+        const next = new Map(current);
+        for (const key of keys) next.delete(key);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const upsertJob = useCallback(
+    (job: AutomationJob) => {
+      settle([job]);
+      setJobs((current) =>
+        keepRecent([...current.filter((entry) => entry.id !== job.id), job]),
+      );
+    },
+    [settle],
+  );
+
+  const expect = useCallback(
+    (itemId: string, fired: Pick<Automation, "id">[]) => {
+      if (!fired.length) return;
+      setExpected((current) => {
+        const next = new Map(current);
+        for (const automation of fired) {
+          const entry: Expected = {
+            automation_id: automation.id,
+            item_id: itemId,
+            status: "queued",
+          };
+          next.set(expectedKey(entry), entry);
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   const kick = useCallback(async () => {
     if (kicking.current) {
@@ -82,6 +127,12 @@ export function useAutomations({
           if (job.ok && job.custom !== null)
             onItemCustomRef.current(job.itemId, job.custom);
         }
+        settle(
+          outcome.processed.map((job) => ({
+            automation_id: job.automationId,
+            item_id: job.itemId,
+          })),
+        );
         setJobs((current) =>
           current.map((job) => {
             const done = outcome.processed.find(
@@ -106,9 +157,11 @@ export function useAutomations({
       if (kickAgain.current) {
         kickAgain.current = false;
         void kick();
+      } else {
+        setExpected((current) => (current.size ? new Map() : current));
       }
     }
-  }, [boardId]);
+  }, [boardId, settle]);
 
   const booted = useRef(false);
   useEffect(() => {
@@ -245,8 +298,8 @@ export function useAutomations({
   }
 
   const pending = useMemo(
-    () => pendingCells(jobs, automations),
-    [jobs, automations],
+    () => pendingCells([...jobs, ...expected.values()], automations),
+    [jobs, expected, automations],
   );
   const openCount = useMemo(() => jobs.filter(isOpen).length, [jobs]);
 
@@ -263,6 +316,7 @@ export function useAutomations({
     runOnExisting,
     retry,
     kick,
+    expect,
     pendingLabel: (itemId: string, columnId: string) =>
       pending.get(itemId)?.get(columnId) ?? null,
   };

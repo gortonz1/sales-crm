@@ -179,9 +179,20 @@ function PendingCell({ label }: { label: string }) {
     <div
       role="status"
       aria-live="polite"
-      className="caption-style text-subtle bg-overlay/[0.03] flex h-9 w-full min-w-0 items-center px-2.5"
+      aria-busy
+      className="caption-style text-subtle bg-overlay/[0.04] relative flex h-9 w-full min-w-0 items-center gap-2 overflow-hidden px-2.5"
     >
-      <span className="animate-pulse truncate">{label}</span>
+      <span
+        aria-hidden
+        className="animate-shimmer via-background/70 pointer-events-none absolute inset-0 bg-linear-to-r from-transparent to-transparent motion-reduce:hidden"
+      />
+      <span
+        aria-hidden
+        className="border-subtle relative size-3 shrink-0 animate-spin rounded-full border-[1.5px] border-t-transparent motion-reduce:animate-none"
+      />
+      <span className="relative truncate motion-reduce:animate-pulse">
+        {label}
+      </span>
     </div>
   );
 }

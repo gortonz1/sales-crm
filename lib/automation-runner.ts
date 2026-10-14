@@ -41,6 +41,7 @@ type JobResult = { outcome: Record<string, Json>; custom: Json | null };
 
 export type ProcessedJob = {
   jobId: string;
+  automationId: string;
   itemId: string;
   ok: boolean;
   error: string | null;
@@ -333,6 +334,7 @@ export async function processAutomationJobs(
         });
         return {
           jobId: job.id,
+          automationId: job.automation_id,
           itemId: job.item_id,
           ok: true,
           error: null,
@@ -351,6 +353,7 @@ export async function processAutomationJobs(
         });
         return {
           jobId: job.id,
+          automationId: job.automation_id,
           itemId: job.item_id,
           ok: false,
           error: message,

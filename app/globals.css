@@ -84,6 +84,16 @@
   --ease-power4-in-out: cubic-bezier(0.83, 0, 0.17, 1);
 
   --ease-smooth-in-out: cubic-bezier(0.7, 0, 0, 1);
+
+  --animate-shimmer: shimmer 1.6s var(--ease-power1-in-out) infinite;
+  @keyframes shimmer {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
 }
 
 :root {

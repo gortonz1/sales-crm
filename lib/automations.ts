@@ -158,6 +158,28 @@ export function statusTriggerValue(automation: Pick<Automation, "config">) {
     : null;
 }
 
+export type CellChange = { fileAdded: boolean; value: Json };
+
+export function willTrigger(
+  automation: Pick<
+    Automation,
+    "enabled" | "trigger" | "trigger_column_id" | "config"
+  >,
+  columnId: string,
+  change: CellChange,
+) {
+  if (!automation.enabled || automation.trigger_column_id !== columnId)
+    return false;
+  if (automation.trigger === "file_added") return change.fileAdded;
+  if (automation.trigger === "status_is") {
+    const now = asText(change.value);
+    if (now === null) return false;
+    const wanted = statusTriggerValue(automation);
+    return wanted === null || wanted === now;
+  }
+  return false;
+}
+
 export const columnLabel = (columns: BoardColumn[], id: string | null) =>
   (id && columns.find((column) => column.id === id)?.label) || null;
 
