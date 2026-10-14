@@ -26,7 +26,11 @@ import {
   saveCustomValue,
   useBoardColumns,
 } from "@/components/sheet/use-board-columns";
-import type { Automation, AutomationJob } from "@/lib/automations";
+import {
+  willTrigger,
+  type Automation,
+  type AutomationJob,
+} from "@/lib/automations";
 import {
   GROUP_NAME_MAX,
   NAME_MAX,
@@ -47,11 +51,13 @@ import {
   useBoardViewSettings,
 } from "@/lib/board-view";
 import {
+  customValue,
   withCustom,
   withLookups,
   type BoardColumn,
   type Lookups,
 } from "@/lib/columns";
+import { asFiles } from "@/lib/files";
 import type { Json, TablesUpdate } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
@@ -190,11 +196,74 @@ export default function BoardView({
       .update(patch)
       .eq("id", id);
     if (error) {
+      const reverted = Object.fromEntries(
+        Object.keys(patch).map((key) => [
+          key,
+          previous[key as keyof BoardItem],
+        ]),
+      );
       setItems((current) =>
-        current.map((item) => (item.id === id ? previous : item)),
+        current.map((item) =>
+          item.id === id ? { ...item, ...reverted } : item,
+        ),
       );
       fail(`save ${previous.name}`, error.message);
     }
+  }
+
+  async function groupForRole(roleId: string): Promise<BoardGroup | null> {
+    const role = lookups.recruitment.find((entry) => entry.value === roleId);
+    if (!role) return null;
+    const groupName = role.label.trim().slice(0, GROUP_NAME_MAX);
+    if (!groupName) return null;
+    const sameName = (group: Pick<BoardGroup, "name">) =>
+      group.name.trim().toLowerCase() === groupName.toLowerCase();
+    const local = groups.find(sameName);
+    if (local) return local;
+
+    const supabase = createClient();
+    const { data: existing } = await supabase
+      .from("board_groups")
+      .select("*")
+      .eq("board_id", board.id)
+      .is("deleted_at", null)
+      .ilike("name", groupName.replace(/[\\%_]/g, "\\$&"))
+      .order("position")
+      .limit(1)
+      .maybeSingle();
+    if (existing && sameName(existing)) {
+      setGroups((current) =>
+        current.some((group) => group.id === existing.id)
+          ? current
+          : sortByPosition([...current, existing]),
+      );
+      return existing;
+    }
+
+    const { data, error } = await supabase
+      .from("board_groups")
+      .insert({
+        board_id: board.id,
+        name: groupName,
+        color: groupColor(groups.length),
+        position: nextPosition(groups),
+      })
+      .select()
+      .single();
+    if (error || !data) {
+      fail(`add a group for ${groupName}`, error?.message);
+      return null;
+    }
+    setGroups((current) => sortByPosition([...current, data]));
+    return data;
+  }
+
+  async function fileUnderRole(itemId: string, roleId: string) {
+    const group = await groupForRole(roleId);
+    if (!group) return;
+    const item = items.find((entry) => entry.id === itemId);
+    if (!item || item.group_id === group.id) return;
+    await updateItem(itemId, { group_id: group.id });
   }
 
   async function saveCustom(id: string, columnId: string, value: CustomValue) {
@@ -218,12 +287,25 @@ export default function BoardView({
       ),
     );
     if (error) return fail(`save ${previous.name}`, error.message);
-    if (
-      automations.automations.some(
-        (rule) => rule.enabled && rule.trigger_column_id === columnId,
-      )
-    )
+
+    const column = columns.find((entry) => entry.id === columnId);
+    if (column?.type === "recruitment" && typeof value === "string")
+      void fileUnderRole(id, value);
+
+    const before = asFiles(customValue(previous, columnId));
+    const change = {
+      fileAdded:
+        Array.isArray(value) &&
+        value.some((file) => !before.some((entry) => entry.id === file.id)),
+      value,
+    };
+    const fired = automations.automations.filter((rule) =>
+      willTrigger(rule, columnId, change),
+    );
+    if (fired.length) {
+      automations.expect(id, fired);
       void automations.kick();
+    }
   }
 
   const binned = () => ({ deleted_at: new Date().toISOString() });
