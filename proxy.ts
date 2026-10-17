@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_PATHS = ["/login", "/robots.txt", "/sitemap.xml", "/llms.txt"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/llms.txt",
+  "/api/automations/run",
+];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
