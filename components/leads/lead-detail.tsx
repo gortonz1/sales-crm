@@ -35,10 +35,12 @@ import {
   formatDate,
   formatDateTime,
   isAddedByHand,
+  isCheckOpen,
   type Lead,
   type LeadActivity,
   type LeadStage,
 } from "@/lib/leads";
+import AiCheckTag from "./ai-check-tag";
 import type { LeadPatch } from "./leads";
 import XIcon from "@/public/assets/images/companies/detail/x.svg";
 
@@ -54,6 +56,7 @@ export default function LeadDetail({
   onClose,
   onUpdate,
   onDelete,
+  onCheck,
 }: {
   lead: Lead | null;
   stages: LeadStage[];
@@ -61,6 +64,7 @@ export default function LeadDetail({
   onClose: () => void;
   onUpdate: (id: string, patch: LeadPatch) => Promise<boolean>;
   onDelete: (id: string) => Promise<string | null>;
+  onCheck: (id: string) => void;
 }) {
   return (
     <Sheet open={lead !== null} onOpenChange={(open) => !open && onClose()}>
@@ -73,6 +77,7 @@ export default function LeadDetail({
             stageLabels={stageLabels}
             onUpdate={onUpdate}
             onDelete={onDelete}
+            onCheck={onCheck}
           />
         )}
       </SheetContent>
@@ -86,12 +91,14 @@ function LeadDetailBody({
   stageLabels,
   onUpdate,
   onDelete,
+  onCheck,
 }: {
   lead: Lead;
   stages: LeadStage[];
   stageLabels: Record<string, string>;
   onUpdate: (id: string, patch: LeadPatch) => Promise<boolean>;
   onDelete: (id: string) => Promise<string | null>;
+  onCheck: (id: string) => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -121,7 +128,7 @@ function LeadDetailBody({
     return () => {
       cancelled = true;
     };
-  }, [lead.id, lead.stage, lead.active, activityVersion]);
+  }, [lead.id, lead.stage, lead.active, lead.ai_check, activityVersion]);
 
   async function saveNotes() {
     setSavingNotes(true);
@@ -231,6 +238,22 @@ function LeadDetailBody({
               </span>
             </div>
           </div>
+        </section>
+
+        <section className="flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="caption-style text-subtle font-medium">AI check</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-my-1 -mr-2"
+              disabled={isCheckOpen(lead)}
+              onClick={() => onCheck(lead.id)}
+            >
+              {lead.ai_check ? "Check again" : "Check with AI"}
+            </Button>
+          </div>
+          <AiCheckSummary lead={lead} />
         </section>
 
         <section className="flex flex-col gap-3">
@@ -435,6 +458,37 @@ function LeadDetailBody({
   );
 }
 
+function AiCheckSummary({ lead }: { lead: Lead }) {
+  if (isCheckOpen(lead))
+    return <p className="text-soft text-[14px]">Checking the enquiry…</p>;
+  if (lead.ai_check === null)
+    return (
+      <p className="text-soft text-[14px]">
+        Not checked. The AI reads the enquiry and says whether it&apos;s a
+        genuine lead for what they ticked.
+      </p>
+    );
+  if (lead.ai_check === "failed")
+    return (
+      <p className="text-danger text-[14px]">
+        The check didn&apos;t finish: {lead.ai_reason ?? "unknown error"}
+      </p>
+    );
+  return (
+    <div className="flex flex-col items-start gap-1.5">
+      <AiCheckTag lead={lead} />
+      {lead.ai_reason && (
+        <p className="text-[14px] leading-[1.5]">{lead.ai_reason}</p>
+      )}
+      {lead.ai_checked_at && (
+        <span className="caption-style text-faint">
+          Checked {formatDateTime(lead.ai_checked_at)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
@@ -450,6 +504,8 @@ function describe(item: LeadActivity, stageLabels: Record<string, string>) {
   switch (item.kind) {
     case "stage":
       return `Moved from ${label(item.from_stage)} to ${label(item.to_stage)}`;
+    case "check":
+      return `AI check: ${item.body ?? ""}`;
     case "received":
     case "imported":
       return item.to_stage && item.to_stage !== "new"

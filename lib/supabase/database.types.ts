@@ -458,6 +458,11 @@ export type Database = {
         Row: {
           custom: Json;
           active: boolean;
+          ai_attempts: number;
+          ai_check: string | null;
+          ai_checked_at: string | null;
+          ai_reason: string | null;
+          ai_started_at: string | null;
           consent: boolean;
           created_at: string;
           email: string;
@@ -481,6 +486,11 @@ export type Database = {
         Insert: {
           custom?: Json;
           active?: boolean;
+          ai_attempts?: number;
+          ai_check?: string | null;
+          ai_checked_at?: string | null;
+          ai_reason?: string | null;
+          ai_started_at?: string | null;
           consent?: boolean;
           created_at?: string;
           email: string;
@@ -504,6 +514,11 @@ export type Database = {
         Update: {
           custom?: Json;
           active?: boolean;
+          ai_attempts?: number;
+          ai_check?: string | null;
+          ai_checked_at?: string | null;
+          ai_reason?: string | null;
+          ai_started_at?: string | null;
           consent?: boolean;
           created_at?: string;
           email?: string;
@@ -558,6 +573,18 @@ export type Database = {
           status: string;
         }[];
       };
+      claim_lead_checks: {
+        Args: { max_checks?: number };
+        Returns: {
+          email: string;
+          enquiry_type: string | null;
+          id: string;
+          message: string | null;
+          name: string;
+          organisation: string | null;
+          source_page: string | null;
+        }[];
+      };
       finish_automation_job: {
         Args: {
           job_id: string;
@@ -568,10 +595,20 @@ export type Database = {
         };
         Returns: undefined;
       };
+      finish_lead_check: {
+        Args: {
+          lead_id: string;
+          reason?: string | null;
+          retry?: boolean;
+          verdict?: string | null;
+        };
+        Returns: undefined;
+      };
       queue_automation: {
         Args: { automation_id: string; item_ids?: string[] | null };
         Returns: number;
       };
+      queue_lead_checks: { Args: { lead_ids: string[] }; Returns: number };
       requeue_automation_job: { Args: { job_id: string }; Returns: undefined };
       crm_is_admin: { Args: never; Returns: boolean };
       crm_team: {

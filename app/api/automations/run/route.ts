@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { processAutomationJobs } from "@/lib/automation-runner";
+import { processLeadChecks } from "@/lib/lead-check";
 import type { Database } from "@/lib/supabase/database.types";
 
 const MAX_ROUNDS = 20;
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
   let processed = 0;
   let failed = 0;
   let remaining = 0;
+  let leadsChecked = 0;
   try {
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
       const outcome = await processAutomationJobs(supabase, null);
@@ -45,6 +47,11 @@ export async function POST(request: Request) {
       remaining = outcome.remaining;
       if (!outcome.processed.length || !remaining) break;
     }
+    for (let round = 0; round < MAX_ROUNDS; round += 1) {
+      const outcome = await processLeadChecks(supabase);
+      leadsChecked += outcome.checked;
+      if (!outcome.checked || !outcome.remaining) break;
+    }
   } catch (error) {
     return json(
       {
@@ -52,9 +59,10 @@ export async function POST(request: Request) {
           error instanceof Error ? error.message : "Couldn't run automations.",
         processed,
         failed,
+        leadsChecked,
       },
       500,
     );
   }
-  return json({ processed, failed, remaining });
+  return json({ processed, failed, remaining, leadsChecked });
 }
