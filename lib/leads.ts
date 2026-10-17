@@ -193,3 +193,6 @@ export function buildTimeline(
 
   return { segments, coldAt };
 }
+
+export const isCheckOpen = (lead: Pick<Lead, "ai_check">) =>
+  lead.ai_check === "queued" || lead.ai_check === "running";

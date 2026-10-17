@@ -37,6 +37,35 @@ export const modelId = () =>
 
 export const aiConfigured = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
+export function aiServiceError(
+  error: unknown,
+  rejected: string,
+  fallback: string,
+) {
+  if (error instanceof Anthropic.AuthenticationError)
+    return new AutomationError(
+      "The ANTHROPIC_API_KEY on the server was rejected.",
+    );
+  if (error instanceof Anthropic.RateLimitError)
+    return new AutomationError(
+      "The AI service is busy. It will be retried.",
+      true,
+    );
+  if (error instanceof Anthropic.BadRequestError)
+    return new AutomationError(`${rejected}: ${error.message}`);
+  if (error instanceof Anthropic.APIConnectionError)
+    return new AutomationError(
+      "Couldn't reach the AI service. It will be retried.",
+      true,
+    );
+  if (error instanceof Anthropic.APIError && error.status >= 500)
+    return new AutomationError(
+      "The AI service had a problem. It will be retried.",
+      true,
+    );
+  return new AutomationError(error instanceof Error ? error.message : fallback);
+}
+
 const tooBig = (name: string, limit: number) =>
   new AutomationError(
     `${name} is over the ${Math.round(limit / 1024 / 1024)} MB limit for AI extraction.`,
@@ -284,31 +313,10 @@ export async function extractFields(
       ],
     });
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError)
-      throw new AutomationError(
-        "The ANTHROPIC_API_KEY on the server was rejected.",
-      );
-    if (error instanceof Anthropic.RateLimitError)
-      throw new AutomationError(
-        "The AI service is busy. It will be retried.",
-        true,
-      );
-    if (error instanceof Anthropic.BadRequestError)
-      throw new AutomationError(
-        `The AI service rejected the file: ${error.message}`,
-      );
-    if (error instanceof Anthropic.APIConnectionError)
-      throw new AutomationError(
-        "Couldn't reach the AI service. It will be retried.",
-        true,
-      );
-    if (error instanceof Anthropic.APIError && error.status >= 500)
-      throw new AutomationError(
-        "The AI service had a problem. It will be retried.",
-        true,
-      );
-    throw new AutomationError(
-      error instanceof Error ? error.message : "AI extraction failed.",
+    throw aiServiceError(
+      error,
+      "The AI service rejected the file",
+      "AI extraction failed.",
     );
   }
 

@@ -11,6 +11,7 @@ import LeadsBoard from "./leads-board";
 import LeadDetail from "./lead-detail";
 import LeadsTimeline from "./leads-timeline";
 import NewLeadDialog from "./new-lead-dialog";
+import { useLeadChecks } from "./use-lead-checks";
 import ColumnsProvider from "@/components/sheet/columns-provider";
 import type { CustomValue } from "@/components/sheet/custom-cell";
 import {
@@ -87,6 +88,7 @@ export default function Leads({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const checkError = useLeadChecks(leads, applyChecked);
 
   const stageLabels = useMemo(
     () => Object.fromEntries(stages.map((s) => [s.id, s.label])),
@@ -102,6 +104,9 @@ export default function Leads({
   );
   const selected = leads.find((lead) => lead.id === selectedId) ?? null;
   const newCount = leads.filter((lead) => lead.stage === "new").length;
+  const uncheckedIds = leads
+    .filter((lead) => lead.stage === "new" && lead.ai_check === null)
+    .map((lead) => lead.id);
   const tabs = [
     { value: GENUINE, label: "Genuine leads" },
     ...stages.map((stage) => ({
@@ -173,6 +178,47 @@ export default function Leads({
     }
     if (added.length) setEvents((current) => [...current, ...added]);
     return true;
+  }
+
+  function applyChecked(updated: Lead[]) {
+    const byId = new Map(updated.map((lead) => [lead.id, lead]));
+    const moved: TimelineEvent[] = leads.flatMap((lead) => {
+      const next = byId.get(lead.id);
+      return next && next.stage !== lead.stage
+        ? [
+            {
+              lead_id: lead.id,
+              kind: "stage",
+              from_stage: lead.stage,
+              to_stage: next.stage,
+              body: null,
+              created_at: next.stage_changed_at,
+            },
+          ]
+        : [];
+    });
+    setLeads((current) => current.map((lead) => byId.get(lead.id) ?? lead));
+    if (moved.length) setEvents((current) => [...current, ...moved]);
+  }
+
+  async function queueChecks(ids: string[]) {
+    if (!ids.length) return;
+    setError(null);
+    const { error } = await createClient().rpc("queue_lead_checks", {
+      lead_ids: ids,
+    });
+    if (error) {
+      setError(`Couldn't start the AI check: ${error.message}`);
+      return;
+    }
+    const queued = new Set(ids);
+    setLeads((current) =>
+      current.map((lead) =>
+        queued.has(lead.id) && lead.ai_check !== "running"
+          ? { ...lead, ai_check: "queued", ai_attempts: 0 }
+          : lead,
+      ),
+    );
   }
 
   async function addLead(fields: NewLead) {
@@ -278,6 +324,16 @@ export default function Leads({
                   {newCount} to review
                 </button>
               )}
+              {uncheckedIds.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => queueChecks(uncheckedIds)}
+                >
+                  Check {uncheckedIds.length} with AI
+                </Button>
+              )}
             </div>
             {canAdd && (
               <Button
@@ -356,12 +412,12 @@ export default function Leads({
           </Tabs>
         </header>
 
-        {error && (
+        {(error ?? checkError) && (
           <p
             role="alert"
             className="caption-style text-danger border-border shrink-0 border-b px-4 py-2"
           >
-            {error}
+            {error ?? checkError}
           </p>
         )}
 
@@ -406,6 +462,7 @@ export default function Leads({
           onClose={() => setSelectedId(null)}
           onUpdate={updateLead}
           onDelete={deleteLead}
+          onCheck={(id) => queueChecks([id])}
         />
         {canAdd && (
           <NewLeadDialog

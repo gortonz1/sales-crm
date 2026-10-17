@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { PillCell, TextCell } from "@/components/recruitment/cells";
 import SheetTable from "@/components/sheet/sheet-table";
 import type { CustomValue } from "@/components/sheet/custom-cell";
+import AiCheckTag, { showsAiCheck } from "./ai-check-tag";
 import type { LeadPatch } from "./leads";
 import { linkHref } from "@/lib/columns";
 import {
@@ -160,7 +161,10 @@ export default function LeadsTable({
                 onClick={() => onOpen(lead.id)}
                 className="flex min-w-0 flex-1 cursor-pointer flex-col text-left outline-none focus-visible:underline"
               >
-                <span className="truncate font-medium">{lead.name}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className="truncate font-medium">{lead.name}</span>
+                  {showsAiCheck(lead) && <AiCheckTag lead={lead} />}
+                </span>
                 <span className="caption-style text-subtle truncate">
                   {lead.email}
                 </span>
