@@ -7,6 +7,7 @@ const PUBLIC_PATHS = [
   "/sitemap.xml",
   "/llms.txt",
   "/api/automations/run",
+  "/q/",
 ];
 
 export async function proxy(request: NextRequest) {

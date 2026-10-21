@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function AiCoursePage() {
   const supabase = await createClient();
-  const [stagesResult, leadsResult, columnsResult, adminResult] =
+  const [stagesResult, leadsResult, columnsResult, adminResult, qrResult] =
     await Promise.all([
       supabase.from("lead_stages").select("*").order("position"),
       supabase
@@ -25,6 +25,7 @@ export default async function AiCoursePage() {
         .eq("board", "ai-enquiries")
         .order("position"),
       supabase.rpc("crm_is_admin"),
+      supabase.from("qr_codes").select("id, name, slug").order("name"),
     ]);
 
   const stages = stagesResult.data ?? [];
@@ -51,6 +52,7 @@ export default async function AiCoursePage() {
       board="ai-enquiries"
       initialColumns={columnsResult.data ?? []}
       isAdmin={adminResult.data === true}
+      qrCodes={qrResult.data ?? []}
       title="AI in Marketing Level 4"
       defaultFilter={ALL}
       subnav={<AiCourseSubnav current="/ai-course" />}
