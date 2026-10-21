@@ -8,6 +8,7 @@ import QrImage from "./qr-image";
 import { formatDate } from "@/lib/leads";
 import {
   EMPTY_TOTALS,
+  QR_DOMAIN_PINNED,
   qrBaseUrl,
   qrLink,
   totalsById,
@@ -160,6 +161,17 @@ export default function QrCodes({
           className="caption-style text-danger border-border shrink-0 border-b px-4 py-2"
         >
           {error}
+        </p>
+      )}
+
+      {!QR_DOMAIN_PINNED && (
+        <p className="caption-style text-soft border-border shrink-0 border-b px-4 py-2 leading-[1.4]">
+          Codes point at{" "}
+          <span className="text-foreground">
+            {base.replace(/^https?:\/\//, "") || "this site's current address"}
+          </span>
+          , which changes if the CRM moves host. Before printing, point a domain
+          you own at the CRM and set NEXT_PUBLIC_QR_BASE_URL to it.
         </p>
       )}
 

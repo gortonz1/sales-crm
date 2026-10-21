@@ -60,6 +60,10 @@ export function suggestSlug(name: string) {
   return slugify(name).replace(/_/g, "-").slice(0, 48).replace(/-+$/, "");
 }
 
+export const QR_DOMAIN_PINNED = Boolean(
+  process.env.NEXT_PUBLIC_QR_BASE_URL?.trim(),
+);
+
 export function qrBaseUrl() {
   const configured = process.env.NEXT_PUBLIC_QR_BASE_URL?.trim();
   if (configured) return configured.replace(/\/+$/, "");
