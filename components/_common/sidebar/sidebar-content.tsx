@@ -21,6 +21,7 @@ import ChartIcon from "@/public/assets/images/companies/sidebar/bar-chart.svg";
 import ClipboardIcon from "@/public/assets/images/companies/sidebar/clipboard.svg";
 import WalletIcon from "@/public/assets/images/companies/sidebar/wallet.svg";
 import ListIcon from "@/public/assets/images/companies/sidebar/list.svg";
+import QrCodeIcon from "@/public/assets/images/companies/sidebar/qr-code.svg";
 import PlusIcon from "@/public/assets/images/_common/plus.svg";
 import TrashIcon from "@/public/assets/images/_common/trash.svg";
 import UserPlusIcon from "@/public/assets/images/companies/sidebar/user-plus.svg";
@@ -91,6 +92,13 @@ export default function SidebarContent({
               href="/recruitment"
               onClick={closeSidebar}
               active={pathname.startsWith("/recruitment")}
+            />
+            <SidebarNavItem
+              icon={QrCodeIcon}
+              label="QR codes"
+              href="/qr-codes"
+              onClick={closeSidebar}
+              active={pathname.startsWith("/qr-codes")}
             />
             <SidebarNavItem
               icon={WalletIcon}

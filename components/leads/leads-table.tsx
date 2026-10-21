@@ -17,6 +17,7 @@ import {
   type Lead,
   type LeadStage,
 } from "@/lib/leads";
+import type { QrCodeOption } from "@/lib/qr-codes";
 import { cn } from "@/lib/utils";
 
 const readOnly = "block truncate px-2.5 leading-9";
@@ -25,6 +26,7 @@ export default function LeadsTable({
   leads,
   stages,
   selectedId,
+  qrCodes,
   onOpen,
   onUpdate,
   onCustomChange,
@@ -32,6 +34,7 @@ export default function LeadsTable({
   leads: Lead[];
   stages: LeadStage[];
   selectedId: string | null;
+  qrCodes: QrCodeOption[];
   onOpen: (id: string) => void;
   onUpdate: (id: string, patch: LeadPatch) => void;
   onCustomChange: (id: string, columnId: string, value: CustomValue) => void;
@@ -49,6 +52,8 @@ export default function LeadsTable({
     label: stage.label,
     color: stageColor(stage.id),
   }));
+
+  const qrNames = new Map(qrCodes.map((code) => [code.id, code.name]));
 
   function renderBuiltIn(field: string, lead: Lead): ReactNode {
     const save = (patch: LeadPatch) => onUpdate(lead.id, patch);
@@ -135,6 +140,12 @@ export default function LeadsTable({
           </a>
         ) : (
           <span className={readOnly}>—</span>
+        );
+      case "qr_code_id":
+        return (
+          <span className={cn(readOnly, !lead.qr_code_id && "text-subtle")}>
+            {(lead.qr_code_id && qrNames.get(lead.qr_code_id)) ?? "—"}
+          </span>
         );
       default:
         return null;

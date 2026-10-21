@@ -476,6 +476,7 @@ export type Database = {
           notes: string | null;
           organisation: string | null;
           phone: string | null;
+          qr_code_id: string | null;
           source: string;
           source_page: string | null;
           stage: string;
@@ -504,6 +505,7 @@ export type Database = {
           notes?: string | null;
           organisation?: string | null;
           phone?: string | null;
+          qr_code_id?: string | null;
           source: string;
           source_page?: string | null;
           stage?: string;
@@ -532,6 +534,7 @@ export type Database = {
           notes?: string | null;
           organisation?: string | null;
           phone?: string | null;
+          qr_code_id?: string | null;
           source?: string;
           source_page?: string | null;
           stage?: string;
@@ -545,6 +548,59 @@ export type Database = {
             columns: ["stage"];
             isOneToOne: false;
             referencedRelation: "lead_stages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "leads_qr_code_id_fkey";
+            columns: ["qr_code_id"];
+            isOneToOne: false;
+            referencedRelation: "qr_codes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      qr_codes: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          destination: string;
+          id: string;
+          name: string;
+          slug: string;
+          tag_links: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          destination: string;
+          name: string;
+          slug: string;
+          tag_links?: boolean;
+        };
+        Update: {
+          destination?: string;
+          name?: string;
+          tag_links?: boolean;
+        };
+        Relationships: [];
+      };
+      qr_scans: {
+        Row: {
+          country: string | null;
+          device: string | null;
+          id: string;
+          os: string | null;
+          qr_code_id: string;
+          scanned_at: string;
+          visitor: string | null;
+        };
+        Insert: { [_ in never]: never };
+        Update: { [_ in never]: never };
+        Relationships: [
+          {
+            foreignKeyName: "qr_scans_qr_code_id_fkey";
+            columns: ["qr_code_id"];
+            isOneToOne: false;
+            referencedRelation: "qr_codes";
             referencedColumns: ["id"];
           },
         ];
@@ -684,6 +740,32 @@ export type Database = {
       };
       ingest_website_lead: {
         Args: { key_hash: string; lead: Json };
+        Returns: Json;
+      };
+      record_qr_scan: {
+        Args: {
+          code_slug: string;
+          counted?: boolean;
+          country?: string | null;
+          device?: string | null;
+          os?: string | null;
+          user_agent?: string | null;
+          visitor_ip?: string | null;
+        };
+        Returns: { destination: string; slug: string; tag_links: boolean }[];
+      };
+      qr_code_totals: {
+        Args: never;
+        Returns: {
+          last_scan_at: string | null;
+          leads: number;
+          qr_code_id: string;
+          scans: number;
+          visitors: number;
+        }[];
+      };
+      qr_code_report: {
+        Args: { code: string; days?: number };
         Returns: Json;
       };
     };

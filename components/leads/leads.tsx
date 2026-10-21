@@ -20,6 +20,7 @@ import {
 } from "@/components/sheet/use-board-columns";
 import { withCustom, type BoardColumn } from "@/lib/columns";
 import { filePaths, removeFiles } from "@/lib/files";
+import type { QrCodeOption } from "@/lib/qr-codes";
 import { createClient } from "@/lib/supabase/client";
 import { useCompaniesStore } from "@/stores/companies-store";
 import {
@@ -49,7 +50,13 @@ const VIEWS: { value: View; label: string }[] = [
 ];
 export type LeadPatch = Pick<
   TablesUpdate<"leads">,
-  "stage" | "active" | "notes" | "organisation" | "phone" | "interest"
+  | "stage"
+  | "active"
+  | "notes"
+  | "organisation"
+  | "phone"
+  | "interest"
+  | "qr_code_id"
 >;
 
 export default function Leads({
@@ -64,6 +71,7 @@ export default function Leads({
   initialColumns,
   canAdd = false,
   isAdmin = false,
+  qrCodes = [],
 }: {
   board?: "leads" | "ai-enquiries";
   initialColumns: BoardColumn[];
@@ -76,6 +84,7 @@ export default function Leads({
   emptyMessage?: string;
   subnav?: ReactNode;
   canAdd?: boolean;
+  qrCodes?: QrCodeOption[];
 }) {
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
   const columnsApi = useBoardColumns(board, initialColumns);
@@ -434,6 +443,7 @@ export default function Leads({
               leads={visible}
               stages={stages}
               selectedId={selectedId}
+              qrCodes={qrCodes}
               onOpen={setSelectedId}
               onUpdate={updateLead}
               onCustomChange={saveCustom}
@@ -459,6 +469,7 @@ export default function Leads({
           lead={selected}
           stages={stages}
           stageLabels={stageLabels}
+          qrCodes={qrCodes}
           onClose={() => setSelectedId(null)}
           onUpdate={updateLead}
           onDelete={deleteLead}

@@ -40,6 +40,7 @@ import {
   type LeadActivity,
   type LeadStage,
 } from "@/lib/leads";
+import type { QrCodeOption } from "@/lib/qr-codes";
 import AiCheckTag from "./ai-check-tag";
 import type { LeadPatch } from "./leads";
 import XIcon from "@/public/assets/images/companies/detail/x.svg";
@@ -53,6 +54,7 @@ export default function LeadDetail({
   lead,
   stages,
   stageLabels,
+  qrCodes,
   onClose,
   onUpdate,
   onDelete,
@@ -61,6 +63,7 @@ export default function LeadDetail({
   lead: Lead | null;
   stages: LeadStage[];
   stageLabels: Record<string, string>;
+  qrCodes: QrCodeOption[];
   onClose: () => void;
   onUpdate: (id: string, patch: LeadPatch) => Promise<boolean>;
   onDelete: (id: string) => Promise<string | null>;
@@ -75,6 +78,7 @@ export default function LeadDetail({
             lead={lead}
             stages={stages}
             stageLabels={stageLabels}
+            qrCodes={qrCodes}
             onUpdate={onUpdate}
             onDelete={onDelete}
             onCheck={onCheck}
@@ -89,6 +93,7 @@ function LeadDetailBody({
   lead,
   stages,
   stageLabels,
+  qrCodes,
   onUpdate,
   onDelete,
   onCheck,
@@ -96,6 +101,7 @@ function LeadDetailBody({
   lead: Lead;
   stages: LeadStage[];
   stageLabels: Record<string, string>;
+  qrCodes: QrCodeOption[];
   onUpdate: (id: string, patch: LeadPatch) => Promise<boolean>;
   onDelete: (id: string) => Promise<string | null>;
   onCheck: (id: string) => void;
@@ -213,6 +219,31 @@ function LeadDetailBody({
                   {INTEREST_OPTIONS.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {(qrCodes.length > 0 || lead.qr_code_id) && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="lead-qr-code">Came from a QR code</Label>
+              <Select
+                value={lead.qr_code_id ?? NONE}
+                onValueChange={(code) =>
+                  onUpdate(lead.id, {
+                    qr_code_id: code === NONE ? null : code,
+                  })
+                }
+              >
+                <SelectTrigger id="lead-qr-code">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>No QR code</SelectItem>
+                  {qrCodes.map((code) => (
+                    <SelectItem key={code.id} value={code.id}>
+                      {code.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
