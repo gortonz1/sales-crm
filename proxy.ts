@@ -1,14 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_PATHS = [
+const PUBLIC_PATHS = new Set([
   "/login",
   "/robots.txt",
   "/sitemap.xml",
   "/llms.txt",
   "/api/automations/run",
-  "/q/",
-];
+]);
+const PUBLIC_PREFIXES = ["/q/"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -40,7 +40,9 @@ export async function proxy(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims);
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  const isPublic =
+    PUBLIC_PATHS.has(pathname) ||
+    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   if (!signedIn && !isPublic) {
     const url = request.nextUrl.clone();
