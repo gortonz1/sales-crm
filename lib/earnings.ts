@@ -410,6 +410,9 @@ export function buildReport(
   };
 }
 
+export const epaRelease = (row: Apprentice) =>
+  row.rem > 0 ? row.headroom : row.element;
+
 export function applyWhatIf(
   row: Apprentice,
   finish: number | undefined,
@@ -454,7 +457,7 @@ export function applyWhatIf(
   }
 
   if (epa != null) {
-    const release = Math.min(row.element, row.headroom);
+    const release = epaRelease(row);
     if (release > 0) {
       const lumpM = row.lumpM.slice();
       lumpM[epa] += release;

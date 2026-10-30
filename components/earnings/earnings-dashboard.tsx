@@ -12,6 +12,7 @@ import type { CostStats } from "@/lib/costs";
 import {
   MONTHS,
   applyWhatIf,
+  epaRelease,
   gbp,
   sum,
   zeros,
@@ -92,7 +93,8 @@ export default function EarningsDashboard({
         .filter((row) => row.gateway)
         .sort(
           (a, b) =>
-            (a.offMonth ?? 0) - (b.offMonth ?? 0) || b.element - a.element,
+            (a.offMonth ?? 0) - (b.offMonth ?? 0) ||
+            epaRelease(b) - epaRelease(a),
         ),
     [adjusted],
   );

@@ -8,6 +8,7 @@ import {
   MONTHS,
   SHORT_MONTHS,
   apprenticeName,
+  epaRelease,
   gbp,
   num,
   seriesColor,
@@ -37,7 +38,7 @@ export default function Gateway({
   const scheduled = list.filter(
     (row) => row.fin == null && epa[row.ref] != null,
   );
-  const value = list.reduce((total, row) => total + row.element, 0);
+  const value = list.reduce((total, row) => total + epaRelease(row), 0);
   const estimated = list.filter((row) => row.elementEst).length;
   const released = scheduled.reduce((total, row) => total + row.pulled, 0);
 
@@ -63,7 +64,7 @@ export default function Gateway({
   return (
     <Panel
       title="Gateway and EPA"
-      description={`${list.length} apprentices come off programme this year holding ${gbp(value)} of completion element. Pick the month each one passes EPA to release it. Months before they leave programme are closed.`}
+      description={`${list.length} apprentices come off programme this year holding ${gbp(value)} still unpaid on their price. Pick the month each one passes EPA to release it: the completion element plus any instalments missed by going to gateway early. Months before they leave programme are closed.`}
       actions={
         <>
           <label className="caption-style text-subtle flex items-center gap-2">
@@ -101,7 +102,7 @@ export default function Gateway({
     >
       <div className="-mx-4 overflow-x-auto px-4">
         <div className="flex min-w-[36em] flex-col gap-1">
-          <StripMonths last="Element" />
+          <StripMonths last="At EPA" />
           <ul className="flex max-h-[22em] flex-col gap-0.5 overflow-y-auto pr-1">
             {list.map((row) => {
               const locked = row.fin != null;
@@ -131,7 +132,7 @@ export default function Gateway({
                             locked
                               ? "Already finishing early — the element is in that lump"
                               : open
-                                ? `Pass EPA in ${MONTHS[i]}: ${gbp(row.element)}${row.elementEst ? " (estimated)" : ""}`
+                                ? `Pass EPA in ${MONTHS[i]}: ${gbp(epaRelease(row))}${row.elementEst ? " (estimated)" : ""}`
                                 : "Still on programme"
                           }
                           aria-label={`${masked ? row.ref : `${row.fn} ${row.sn}`}, EPA in ${MONTHS[i]}`}
@@ -162,7 +163,7 @@ export default function Gateway({
                         : undefined
                     }
                   >
-                    {gbp(row.element)}
+                    {gbp(epaRelease(row))}
                     {row.elementEst && <span className="opacity-60">*</span>}
                   </span>
                 </li>
@@ -175,7 +176,7 @@ export default function Gateway({
       <Footnote>
         {scheduled.length > 0
           ? `${scheduled.length} EPAs scheduled, releasing ${gbp(released)} into this year. `
-          : "Nothing scheduled yet. The completion element only appears in the report once an achievement date is recorded, so none of this is in the forecast. "}
+          : "Nothing scheduled yet. The completion and balancing payments only appear in the report once an achievement date is recorded, so none of this is in the forecast. "}
         {estimated > 0 &&
           `* ${estimated} of these apprentices left programme in an earlier funding year, so this report carries no price for them. Completing pays a flat ${gbp(DEFAULT_COMPLETION)} — check that against their actual negotiated price before you rely on the total.`}
       </Footnote>
