@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import { lockEarnings, saveEarnings } from "@/app/(app)/earnings/actions";
 import Button from "@/components/_ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/_ui/tabs";
 import {
   buildReport,
   carryPlan,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/earnings";
 import type { CostStats } from "@/lib/costs";
 import { cn } from "@/lib/utils";
+import Comparison from "./comparison";
 import Costs, { CostsLoading, type CostsFlash } from "./costs";
 import EarningsDashboard from "./earnings-dashboard";
 import EarningsShell from "./shell";
@@ -59,6 +61,7 @@ export default function Earnings({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [masked, setMasked] = useState(false);
+  const [tab, setTab] = useState("forecast");
   const [saving, startSaving] = useTransition();
   const [locking, startLocking] = useTransition();
 
@@ -103,7 +106,7 @@ export default function Earnings({
         setSaveError(null);
         setReport(next);
         setPlan((current) =>
-          current ? carryPlan(current, next) : defaultPlan(next),
+          current ? carryPlan(current, next, report) : defaultPlan(next),
         );
         setReplacing(false);
       } catch (caught) {
@@ -172,6 +175,16 @@ export default function Earnings({
           </Button>
         )
       }
+      tabs={
+        showDashboard && (
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList className="px-4">
+              <TabsTrigger value="forecast">Forecast</TabsTrigger>
+              <TabsTrigger value="comparison">Comparison</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )
+      }
       toolbar={
         <>
           <span
@@ -218,7 +231,9 @@ export default function Earnings({
         </>
       }
     >
-      {showDashboard ? (
+      {showDashboard && tab === "comparison" ? (
+        <Comparison report={report} snapshot={plan.snapshot} masked={masked} />
+      ) : showDashboard ? (
         <EarningsDashboard
           report={report}
           plan={plan}
@@ -242,11 +257,13 @@ export default function Earnings({
           keepsPlan={plan !== null}
         />
       )}
-      <div className="border-line-strong mt-6 border-t pt-6">
-        <Suspense fallback={<CostsLoading />}>
-          <Costs stats={costs} flash={costsFlash} />
-        </Suspense>
-      </div>
+      {!(showDashboard && tab === "comparison") && (
+        <div className="border-line-strong mt-6 border-t pt-6">
+          <Suspense fallback={<CostsLoading />}>
+            <Costs stats={costs} flash={costsFlash} />
+          </Suspense>
+        </div>
+      )}
     </EarningsShell>
   );
 }

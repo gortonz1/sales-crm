@@ -410,6 +410,9 @@ export function buildReport(
   };
 }
 
+export const epaRelease = (row: Apprentice) =>
+  row.rem > 0 ? row.headroom : row.element;
+
 export function applyWhatIf(
   row: Apprentice,
   finish: number | undefined,
@@ -454,7 +457,7 @@ export function applyWhatIf(
   }
 
   if (epa != null) {
-    const release = Math.min(row.element, row.headroom);
+    const release = epaRelease(row);
     if (release > 0) {
       const lumpM = row.lumpM.slice();
       lumpM[epa] += release;
@@ -488,6 +491,32 @@ export function applyWhatIf(
   };
 }
 
+export const adjustRows = (
+  rows: Apprentice[],
+  early: Record<string, number>,
+  epa: Record<string, number>,
+): Adjusted[] =>
+  rows.map((row) => ({
+    ...row,
+    ...applyWhatIf(row, early[row.ref], epa[row.ref]),
+    fin: early[row.ref] ?? null,
+  }));
+
+export function planIntake(programmes: Programme[]) {
+  const income = zeros();
+  const heads = zeros();
+  for (const programme of programmes) {
+    programme.starts.forEach((count, start) => {
+      if (!count) return;
+      for (let i = start; i < Math.min(12, start + programme.months); i++) {
+        income[i] += programme.monthly * count;
+        heads[i] += count;
+      }
+    });
+  }
+  return { income, heads };
+}
+
 export const programmeMonthsInYear = (programme: Programme) =>
   programme.starts.reduce(
     (total, count, start) =>
@@ -498,6 +527,14 @@ export const programmeMonthsInYear = (programme: Programme) =>
     0,
   );
 
+export type Snapshot = {
+  report: Report;
+  programmes: Programme[];
+  early: Record<string, number>;
+  epa: Record<string, number>;
+  takenAt: string;
+};
+
 export type Plan = {
   year: string;
   programmes: Programme[];
@@ -505,7 +542,23 @@ export type Plan = {
   epa: Record<string, number>;
   lag: number;
   costs?: CostPlan;
+  snapshot?: Snapshot;
 };
+
+export function reportTime(report: Report) {
+  const [day, month, year] = report.generated.split(" ");
+  const index = SHORT_MONTHS.indexOf(String(month).slice(0, 3));
+  return index < 0 ? 0 : Date.UTC(+year, (index + 7) % 12, +day);
+}
+
+export function reportMonth(report: Report) {
+  const time = reportTime(report);
+  if (!time) return 11;
+  const date = new Date(time);
+  const start = +report.year.slice(0, 4);
+  const index = (date.getUTCFullYear() - start) * 12 + date.getUTCMonth() - 8;
+  return Math.max(0, Math.min(11, index));
+}
 
 export type SavedWorkspace = {
   report: Report;
@@ -539,7 +592,11 @@ export const defaultPlan = (report: Report): Plan => ({
   lag: 2,
 });
 
-export function carryPlan(plan: Plan, report: Report): Plan {
+export function carryPlan(
+  plan: Plan,
+  report: Report,
+  previous: Report | null,
+): Plan {
   if (plan.year !== report.year) {
     return plan.costs
       ? { ...defaultPlan(report), costs: plan.costs }
@@ -556,8 +613,22 @@ export function carryPlan(plan: Plan, report: Report): Plan {
         return row != null && allowed(row, month);
       }),
     );
+  const newer =
+    previous != null &&
+    previous.year === report.year &&
+    reportTime(report) > reportTime(previous);
   return {
     ...plan,
+    snapshot:
+      previous && newer
+        ? {
+            report: previous,
+            programmes: plan.programmes,
+            early: plan.early,
+            epa: plan.epa,
+            takenAt: new Date().toISOString(),
+          }
+        : plan.snapshot,
     early: keep(plan.early, () => true),
     epa: keep(
       plan.epa,
