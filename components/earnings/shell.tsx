@@ -9,11 +9,13 @@ export default function EarningsShell({
   badge,
   actions,
   toolbar,
+  tabs,
   children,
 }: {
   badge?: ReactNode;
   actions?: ReactNode;
   toolbar?: ReactNode;
+  tabs?: ReactNode;
   children: ReactNode;
 }) {
   const setSidebarOpen = useCompaniesStore((state) => state.setSidebarOpen);
@@ -48,6 +50,7 @@ export default function EarningsShell({
             {toolbar}
           </div>
         )}
+        {tabs}
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">

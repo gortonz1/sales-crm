@@ -11,11 +11,11 @@ import { readCostPlan, type CostPlan } from "@/lib/cost-forecast";
 import type { CostStats } from "@/lib/costs";
 import {
   MONTHS,
-  applyWhatIf,
+  adjustRows,
   epaRelease,
   gbp,
+  planIntake,
   sum,
-  zeros,
   type Adjusted,
   type Plan,
   type Report,
@@ -77,13 +77,8 @@ export default function EarningsDashboard({
           : update,
     }));
 
-  const adjusted = useMemo<Adjusted[]>(
-    () =>
-      rows.map((row) => ({
-        ...row,
-        ...applyWhatIf(row, early[row.ref], epa[row.ref]),
-        fin: early[row.ref] ?? null,
-      })),
+  const adjusted = useMemo(
+    () => adjustRows(rows, early, epa),
     [rows, early, epa],
   );
 
@@ -99,20 +94,7 @@ export default function EarningsDashboard({
     [adjusted],
   );
 
-  const intake = useMemo(() => {
-    const income = zeros();
-    const heads = zeros();
-    for (const programme of programmes) {
-      programme.starts.forEach((count, start) => {
-        if (!count) return;
-        for (let i = start; i < Math.min(12, start + programme.months); i++) {
-          income[i] += programme.monthly * count;
-          heads[i] += count;
-        }
-      });
-    }
-    return { income, heads };
-  }, [programmes]);
+  const intake = useMemo(() => planIntake(programmes), [programmes]);
 
   const k = useMemo(() => {
     const total = (pick: (row: Adjusted) => number) =>
